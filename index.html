@@ -17,6 +17,8 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 @media(max-width:1050px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.lower{grid-template-columns:1fr}.map{height:440px}.source-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:650px){header{height:62px;padding:0 14px}.topmeta{font-size:10px}.topmeta .pill{display:none}main{padding:20px 12px 34px}.headline{display:block}.asof{text-align:left;margin-top:12px}.kpis{grid-template-columns:1fr 1fr;gap:8px}.kpi{min-height:94px;padding:12px}.kpi-value{font-size:22px}.filters{align-items:stretch;gap:7px}.filters strong{width:100%}.filters label{width:100%;margin-top:2px}.select{min-width:0;flex:1}.side{display:flex}.map{height:390px}.panel{padding:14px}.map-panel{padding:14px 12px 9px}.method{grid-template-columns:1fr;gap:13px;padding:15px}.method-points{grid-template-columns:1fr}.source-grid{grid-template-columns:1fr}.quality-grid{grid-template-columns:1fr}.district-row{grid-template-columns:minmax(90px,1.15fr) minmax(55px,.9fr) 87px 60px;gap:6px}}
 @media(min-width:651px){.quality-grid{grid-template-columns:repeat(4,1fr)}}
+.service-search{margin:15px 0;padding:18px 20px}.search-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:end}.search-label{display:block;font-size:11px;font-weight:700;color:#52666c;margin-bottom:5px}.search-input{width:100%;border:1px solid #dce5e3;border-radius:9px;padding:11px 12px;font:inherit;font-size:13px;color:#304a50}.search-input:focus{outline:0;border-color:#71bbb1;box-shadow:0 0 0 3px #168b8317}.search-button{border:0;border-radius:9px;background:#168b83;color:#fff;font-weight:700;padding:11px 16px;cursor:pointer}.search-button:hover{background:#11756f}.search-button:disabled{opacity:.65;cursor:wait}.ai-explainer{margin-top:12px;padding:10px 12px;border-radius:9px;background:#eff7f4;color:#536c69;font-size:10px;line-height:1.6}.search-status{font-size:11px;color:#63777b;margin-top:12px}.service-results{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}.service-result{border:1px solid #e5ece9;border-radius:11px;padding:12px;background:#fff}.service-result strong{display:block;font-size:12px;color:#304a50;margin:5px 0}.service-provider{font-size:10px;color:#71818a}.service-meta{font-size:10px;color:#71818a;line-height:1.6;overflow-wrap:anywhere}.service-tags{display:flex;gap:5px;flex-wrap:wrap}.service-tag{font-size:9px;color:#37766c;background:#edf7f2;padding:3px 7px;border-radius:99px}.service-reason{font-size:10px;color:#4d7166;background:#f4faf7;border-radius:7px;padding:7px 8px;margin-top:8px}.service-contact{display:inline-block;margin-top:7px;font-size:10px;font-weight:700}.search-caveat{font-size:10px;color:#7d898b;line-height:1.6;margin:10px 0 0}.method-title{margin-bottom:8px}.evaluation-note{font-size:10px;color:#d3e2e0;background:#2b4a56;padding:9px 10px;border-radius:8px;margin-top:10px;line-height:1.6}
+@media(max-width:650px){.service-search{padding:14px}.search-form{grid-template-columns:1fr}.search-button{width:100%}.service-results{grid-template-columns:1fr}}
 </style>
 <link rel="stylesheet" href="/leaflet.css">
 </head>
@@ -28,7 +30,7 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 <main>
   <div class="eyebrow">전국 지역사회 통합돌봄 · 지역별 탐색</div>
   <div class="headline">
-    <div><h1>돌봄 인구와 서비스 자원 분포</h1><p class="lead">행정동별 고령인구·고령 1인 세대와 시군구별 통합돌봄 서비스 목록을 함께 살펴봅니다.</p></div>
+    <div><h1>지역과 필요를 연결하는 돌봄 서비스 찾기</h1><p class="lead">지역과 필요한 도움을 선택해 공개된 통합돌봄 프로그램 후보를 근거와 함께 찾고, 전국 현황을 살펴봅니다.</p></div>
     <div class="asof">자료 기준일<strong>인구 2026.10.31 · 서비스 목록 2026.06.30</strong></div>
   </div>
   <section class="kpis" id="kpis" aria-label="전국 요약"></section>
@@ -37,6 +39,17 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
     <label for="provinceFilter">시도</label><select id="provinceFilter" class="select"><option value="">전국</option></select>
     <label for="districtFilter">시군구</label><select id="districtFilter" class="select"><option value="">시군구 전체</option></select>
     <label for="categoryFilter">서비스 대분류</label><select id="categoryFilter" class="select"><option value="">전체 유형</option></select>
+  </section>
+  <section class="panel service-search" aria-labelledby="serviceSearchTitle">
+    <div class="panel-head"><div><div id="serviceSearchTitle" class="panel-title">필요한 돌봄 서비스 찾기</div><div class="panel-sub">시도·시군구를 선택하고 필요한 도움을 적으면 원자료에서 관련 프로그램 후보를 찾습니다.</div></div></div>
+    <form id="serviceSearchForm" class="search-form">
+      <div><label class="search-label" for="serviceQuery">어떤 도움이 필요하신가요?</label><input id="serviceQuery" class="search-input" maxlength="150" required placeholder="예: 식사 준비가 어려워 반찬 지원을 찾고 있어요"></div>
+      <button id="serviceSearchButton" class="search-button" type="submit">서비스 후보 찾기</button>
+    </form>
+    <div class="ai-explainer"><strong>현재 데모:</strong> 입력 키워드와 서비스 분류를 이용하는 규칙 기반 검색입니다. <strong>제안 AI:</strong> 자연어에서 필요한 도움을 분류한 뒤, 공식 원자료 목록에서 출처가 표시된 후보를 검색하는 구조입니다. 이 화면은 생성형 AI의 판단이나 자격 판정을 제공하지 않습니다.</div>
+    <div id="serviceSearchStatus" class="search-status" role="status" aria-live="polite">시도 또는 시군구를 먼저 선택한 뒤 검색해 주세요.</div>
+    <div id="serviceSearchResults" class="service-results"></div>
+    <p class="search-caveat">서비스 목록은 2026.06.30 기준 일회성 자료입니다. 검색 결과는 이용 가능성·자격·정원을 보장하지 않으며, 연락처와 운영 여부를 해당 기관에 확인해야 합니다.</p>
   </section>
   <section class="layout">
     <article class="panel map-panel">
@@ -72,12 +85,14 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
     <div id="qualitySummary" class="quality-grid"></div>
   </section>
   <section class="method">
-    <div><h2>해석 범위</h2><p>행정안전부의 행정동별 연령 인구와 1인 세대 자료를 행정기관 코드로 결합했습니다. 건강보험공단 통합돌봄 목록은 시도·시군구·서비스 분류별 행 수로 집계했습니다. 기준일이 서로 달라 화면에 출처별 날짜를 표시합니다.</p></div>
+    <div><h2 class="method-title">AI 적용·검증 설계</h2><p>현재 데모의 검색은 입력 키워드와 서비스 분류가 원자료에 일치하는지 계산하는 투명한 기준선입니다. 제안 AI는 자연어 요구 분류 → 서비스 유형 매핑 → 원자료 검색(RAG) → 근거와 함께 후보 제시 순서로 설계합니다.</p><div class="evaluation-note"><strong>검증 계획(아직 수행 전)</strong><br>현장 담당자 질의 사례로 상위 3개 후보의 적합도, 근거 일치율, 수작업 대비 탐색 시간, 연락처 최신성을 평가합니다.</div></div>
     <div class="method-points">
-      <div class="method-point">65세 이상 인구와 고령 1인 세대는 지역 상황을 살펴보는 지표이지 개인별 돌봄 필요 판정이 아닙니다.</div>
-      <div class="method-point">통합돌봄 목록에는 장기요양·보건의료·일상생활·주거 지원 등 서로 다른 서비스가 포함됩니다. 전체 행을 노인 전용 시설 수로 해석하면 안 됩니다.</div>
-      <div class="method-point">기관별 정원·현원·대기 인원, 실제 이용량과 서비스 권역은 이 자료에 포함되지 않습니다.</div>
-      <div class="method-point">이 화면은 공개자료 탐색 시제품이며, 학습·검증된 AI 수요예측이나 입지 최적화 결과를 제공하지 않습니다.</div>
+      <div class="method-point">65세 이상 인구와 고령 1인 세대는 지역 지표이지 개인별 돌봄 필요나 위기 판정이 아닙니다.</div>
+      <div class="method-point">서비스 행 수는 고유 기관 수·정원·이용 가능 인원과 다르며, 모든 프로그램이 노인 전용은 아닙니다.</div>
+      <div class="method-point">기관별 정원·현원·대기 인원·이용량·서비스 권역은 현재 원자료에 없습니다.</div>
+      <div class="method-point">이름·주민등록번호 등 개인식별정보를 입력하지 마세요. 검색 내용을 저장하지 않으며 개인별 자격 판정이나 자동 배제는 하지 않습니다.</div>
+      <div class="method-point">검색 후보는 현장 담당자나 이용자가 기관에 확인해야 하며 최종 판단을 대신하지 않습니다.</div>
+      <div class="method-point">현재 데모에는 학습·검증된 예측 모델이 연결되어 있지 않습니다. 검증 결과를 얻기 전까지 예측 성능을 주장하지 않습니다.</div>
     </div>
   </section>
   <section class="panel sources">
@@ -89,7 +104,7 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
       <div class="source-card"><strong>행정구역 참고 지도</strong><a href="https://www.geoboundaries.org/api/current/gbOpen/KOR/ADM1/" target="_blank" rel="noreferrer">geoBoundaries · Natural Earth 2021 · Public Domain</a><br><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">배경 타일: © OpenStreetMap contributors</a></div>
     </div>
   </section>
-  <div class="footer">CareMap AI는 지자체 담당자의 검토를 돕는 공개자료 기반 시제품입니다. 최종 정책 판단에는 현장 확인과 추가 자료가 필요합니다.</div>
+  <div class="footer">CareMap은 공개자료에서 서비스 후보를 찾고 지역 현황을 검토하는 시제품입니다. 이용 가능 여부와 최종 정책 판단에는 기관·현장 확인이 필요합니다.</div>
 </main>
 <script src="/leaflet.js"></script>
 <script src="/data/national_data.js"></script>
@@ -102,6 +117,10 @@ const provinceFilter=document.getElementById('provinceFilter');
 const districtFilter=document.getElementById('districtFilter');
 const categoryFilter=document.getElementById('categoryFilter');
 const mapStatus=document.getElementById('mapStatus');
+const serviceSearchForm=document.getElementById('serviceSearchForm');
+const serviceSearchStatus=document.getElementById('serviceSearchStatus');
+const serviceSearchResults=document.getElementById('serviceSearchResults');
+const serviceSearchButton=document.getElementById('serviceSearchButton');
 const districtById=new Map(DATA.districts.map(d=>[d.districtId,d]));
 const provinceByName=new Map(DATA.provinces.map(p=>[p.sido,p]));
 const total={sido:'전국',districtCount:DATA.metadata.districtCount,dongCount:DATA.areas.length,population:0,elderly:0,elderlySinglePersonHouseholds:0,resourceRows:0,resourcesByMajor:{},missingAddressRows:DATA.metadata.resourceRowsWithMissingAddress,missingPhoneRows:DATA.metadata.resourceRowsWithMissingPhone};
@@ -175,9 +194,46 @@ function renderQuality(){
   [fmt(DATA.metadata.resourceRowsWithMissingPhone),`연락처 공란 · ${pct(DATA.metadata.resourceRowsWithMissingPhone,totalRows)}`],
   [fmt(DATA.metadata.resourceProvinceOnlyRows),`시군구 없이 시도 단위로 등록된 항목 · 세종`],
   [fmt(DATA.metadata.resourceEncodingReplacementChars),`원자료에서 복원되지 않은 문자 · 원본 파일 보존`],
+  [fmt(DATA.metadata.minorCategoryCount)+'종','자료 행에서 관측된 소분류 · 공단 설명 34종과 대조 필요'],
  ];
  document.getElementById('qualitySummary').innerHTML=items.map(x=>'<div class="quality-card"><strong>'+esc(x[0])+'</strong><span>'+esc(x[1])+'</span></div>').join('');
 }
+function renderServiceResults(results){
+ if(!results.length){serviceSearchResults.innerHTML='';return}
+ serviceSearchResults.innerHTML=results.map((resource,index)=>{
+  const title=resource.program||resource.provider||'프로그램명 미기재';
+  const location=[resource.sido,resource.sigungu,resource.address].filter(Boolean).join(' ');
+  const reasons=[...resource.matchedCategories.map(name=>'유형 '+name),...resource.matchedTerms.map(term=>'입력어 '+term)].slice(0,4);
+  const phone=resource.phone&&/^[+()0-9 -]+$/.test(resource.phone)?'<a class="service-contact" href="tel:'+esc(resource.phone.replace(/[^+0-9]/g,''))+'">'+esc(resource.phone)+' 전화</a>':`<span class="service-meta">${resource.phone?'연락처: '+esc(resource.phone):'연락처 미기재'}</span>`;
+  return '<article class="service-result"><div class="service-tags"><span class="service-tag">후보 '+(index+1)+'</span><span class="service-tag">'+esc(resource.major)+'</span><span class="service-tag">'+esc(resource.minor)+'</span></div><strong>'+esc(title)+'</strong><div class="service-provider">'+esc(resource.provider||'서비스 제공기관명 미기재')+'</div><div class="service-meta">'+esc(location||'주소 미기재')+'</div><div class="service-reason">검색 근거: '+esc(reasons.join(' · ')||'서비스 목록 항목 일치')+'</div>'+phone+'<br><a class="service-contact" href="https://www.data.go.kr/data/15173720/fileData.do" target="_blank" rel="noreferrer">원자료 출처</a></article>';
+ }).join('');
+}
+serviceSearchForm.addEventListener('submit',async event=>{
+ event.preventDefault();
+ const province=provinceFilter.value;
+ const district=selectedDistrict();
+ const query=document.getElementById('serviceQuery').value.trim();
+ if(!province){serviceSearchStatus.textContent='먼저 시도를 선택해 주세요. 시군구까지 선택하면 더 좁혀 검색합니다.';return}
+ if(query.length<2){serviceSearchStatus.textContent='필요한 도움을 두 글자 이상 입력해 주세요.';return}
+ serviceSearchButton.disabled=true;
+ serviceSearchStatus.textContent='공개 서비스 목록에서 후보를 찾고 있습니다.';
+ serviceSearchResults.innerHTML='';
+ try{
+  const params=new URLSearchParams({query,province,limit:'8'});
+  if(district?.sigungu)params.set('district',district.sigungu);
+  if(categoryFilter.value)params.set('category',categoryFilter.value);
+  const response=await fetch('/api/resources?'+params.toString(),{headers:{Accept:'application/json'}});
+  const payload=await response.json();
+  if(!response.ok)throw new Error(payload.error||'서비스 목록을 검색하지 못했습니다.');
+  renderServiceResults(payload.results);
+  const region=district?.sigungu?province+' '+district.sigungu:province;
+  serviceSearchStatus.textContent=payload.results.length?region+'에서 후보 '+fmt(payload.results.length)+'건을 찾았습니다 · '+payload.searchMethod+' · 기준 '+payload.asOf:'일치하는 후보가 없습니다. 식사·복약·이동·주거처럼 필요한 도움 유형을 구체적으로 적어 보세요.';
+ }catch(error){
+  serviceSearchStatus.textContent=error.message||'검색 중 오류가 발생했습니다.';
+ }finally{
+  serviceSearchButton.disabled=false;
+ }
+});
 function rateColor(rate){if(rate>=.26)return '#168b83';if(rate>=.22)return '#4ca58f';if(rate>=.18)return '#83c3ac';if(rate>=.14)return '#b7dfcc';return '#e9f4ef'}
 function popupHtml(province){return '<b>'+esc(province.sido)+'</b><br>65세 이상 '+fmt(province.elderly)+'명 ('+pct(province.elderly,province.population)+')<br>고령 1인 세대 '+fmt(province.elderlySinglePersonHouseholds)+'세대<br>서비스 자원 목록 '+fmt(resourceCount(province))+'행<br><span style="color:#71818a">목록 행은 고유 기관 수나 정원이 아닙니다.</span>'}
 const map=L.map('map',{scrollWheelZoom:false}).setView([36.35,127.8],6);
