@@ -9,6 +9,7 @@ const files = new Map([
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
   ['/leaflet.js', ['leaflet.js', 'text/javascript; charset=utf-8']],
   ['/leaflet.css', ['leaflet.css', 'text/css; charset=utf-8']],
+  ['/data/ulsan_data.js', ['data/ulsan_data.js', 'text/javascript; charset=utf-8']],
   ['/data/ulsan_admin_dong.csv', ['data/ulsan_admin_dong.csv', 'text/csv; charset=utf-8']],
   ['/data/ulsan_care_platforms.csv', ['data/ulsan_care_platforms.csv', 'text/csv; charset=utf-8']],
   ['/data/ulsan_district_summary.csv', ['data/ulsan_district_summary.csv', 'text/csv; charset=utf-8']],
