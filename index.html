@@ -3,192 +3,205 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CareMap AI | 울산 시범분석</title>
-
-
-
+<title>CareMap AI | 전국 통합돌봄 자원 분포</title>
 <style>
-:root{--ink:#182a35;--muted:#71818a;--line:#e4e9e8;--paper:#fff;--canvas:#f4f7f5;--teal:#168b83;--teal2:#dff4ef;--amber:#e1a842;--red:#c75b47;--blue:#3f7fe8;--navy:#203c4b;--shadow:0 8px 28px rgba(24,51,59,.06)}
-*{box-sizing:border-box}
-body{margin:0;background:var(--canvas);color:var(--ink);font-family:Inter,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",Arial,sans-serif;font-size:14px;line-height:1.5}
-a{color:#147d77;text-decoration:none}a:hover{text-decoration:underline}
-header{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 max(28px,calc((100vw - 1440px)/2));position:sticky;top:0;z-index:500}
-.brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:17px;letter-spacing:-.4px}.brand-mark{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#20a69a,#176b70);color:#fff;display:grid;place-items:center;font-size:17px;box-shadow:0 5px 12px #138d8533}.brand small{display:block;font-size:10px;color:#7f9298;letter-spacing:1.1px;font-weight:700;margin-top:-3px}
-.topmeta{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}.pill{border:1px solid #d5e5df;background:#f1faf6;color:#327b6f;border-radius:999px;padding:6px 11px;font-size:11px;font-weight:700}
-main{max-width:1440px;margin:0 auto;padding:30px 28px 56px}
-.eyebrow{color:var(--teal);font-size:11px;font-weight:800;letter-spacing:1.25px;text-transform:uppercase}
-.headline{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin:5px 0 22px}
-h1{font-size:28px;line-height:1.25;letter-spacing:-1.1px;margin:5px 0 7px}.lead{color:#71818a;margin:0;font-size:13px}
-.asof{font-size:11px;color:#75858c;text-align:right;white-space:nowrap}.asof strong{display:block;color:#344c56;font-size:12px}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:18px 0}
-.kpi,.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
-.kpi{padding:17px 19px;min-height:112px;position:relative;overflow:hidden}.kpi:after{content:"";position:absolute;width:86px;height:86px;border-radius:50%;right:-22px;top:-25px;background:#e9f7f3}
-.kpi:nth-child(2):after{background:#edf3ff}.kpi:nth-child(3):after{background:#fff4dd}.kpi:nth-child(4):after{background:#f8e9e4}
-.kpi-label{color:#70828a;font-size:11px;font-weight:700;position:relative;z-index:1}.kpi-value{font-size:27px;font-weight:800;letter-spacing:-.8px;margin:4px 0 1px;position:relative;z-index:1}.kpi-note{font-size:10px;color:#8a999e;position:relative;z-index:1}
-.layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(330px,.82fr);gap:16px;align-items:stretch}
-.panel{padding:18px 20px}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px}.panel-title{font-size:15px;font-weight:800;letter-spacing:-.25px}.panel-sub{font-size:11px;color:#849399;margin-top:3px}.select{border:1px solid #dce5e3;border-radius:9px;background:#fff;padding:8px 30px 8px 10px;color:#3c535c;font-size:12px;outline:none}
-.map-panel{padding:18px 18px 12px}.map-shell{position:relative}.map{height:476px;border-radius:12px;overflow:hidden;background:#e5efec;z-index:1}.map-legend{position:absolute;z-index:400;left:12px;bottom:12px;background:rgba(255,255,255,.96);border:1px solid #e0e7e4;border-radius:10px;padding:10px 12px;box-shadow:0 5px 18px #304a5017;font-size:10px;color:#52666c}.legend-title{font-size:10px;font-weight:800;margin-bottom:7px}.legend-row{display:flex;align-items:center;gap:7px;margin:4px 0}.dot{width:10px;height:10px;border-radius:50%;display:inline-block}
-.map-status{position:absolute;right:12px;top:12px;z-index:1000;max-width:280px;padding:8px 11px;border-radius:9px;border:1px solid #e3d5aa;background:#fff9e8;color:#745f31;font-size:11px;box-shadow:0 4px 14px #304a5017}.map-status[hidden]{display:none}.map-svg{width:100%;height:100%;display:block}.map-title{font:700 18px Inter,'Noto Sans KR',sans-serif;fill:#35545a}.map-hint{font:11px Inter,'Noto Sans KR',sans-serif;fill:#849693}.district-label{font:700 14px Inter,'Noto Sans KR',sans-serif;fill:#47645f;paint-order:stroke;stroke:#edf4f1;stroke-width:5px;stroke-linejoin:round;opacity:.8}.scenario-label{font:700 11px Inter,'Noto Sans KR',sans-serif;fill:#315eae;paint-order:stroke;stroke:#edf4f1;stroke-width:4px}.area-point{cursor:pointer}.area-point:focus{outline:none}.area-point:hover circle:nth-child(2){stroke:#183e4e;stroke-width:3}.leaflet-popup-content-wrapper{border-radius:10px}.leaflet-popup-content{font-family:inherit;font-size:12px;line-height:1.6}.map-caption{font-size:10px;color:#8a979b;padding:8px 2px 0}
-.side{display:flex;flex-direction:column;gap:14px}.side .panel{padding:18px 19px}
-.selected-head{display:flex;justify-content:space-between;align-items:start;gap:10px}.selected-name{font-size:20px;letter-spacing:-.5px;font-weight:800}.district-chip{background:#eff7f4;color:#4b7c72;padding:5px 9px;border-radius:99px;font-size:10px;font-weight:700;white-space:nowrap}
-.selected-note{font-size:10px;color:#91a0a3;margin-top:2px}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:15px 0 12px}.stat{padding:10px 11px;background:#f7f9f8;border-radius:10px}.stat label{display:block;font-size:10px;color:#829197}.stat strong{display:block;font-size:17px;margin-top:2px}
-.hr{height:1px;background:#edf0ef;margin:14px 0}
-.scenario-title{font-size:12px;font-weight:800;margin-bottom:7px}.scenario-control{display:flex;align-items:center;justify-content:space-between;gap:10px}.scenario-control label{font-size:11px;color:#6f8085}.scenario-control select{width:92px}.metric-box{background:#f1f7ff;border:1px solid #dfebfc;border-radius:11px;padding:11px 12px;margin-top:10px}.metric-label{font-size:10px;color:#597494}.metric-change{display:flex;align-items:baseline;gap:7px;margin-top:3px}.metric-change strong{font-size:18px;color:#294f83}.metric-change span{font-size:11px;color:#75879a}.metric-foot{font-size:10px;color:#8493a2;margin-top:4px}
-.warning{margin-top:11px;padding:9px 10px;border-left:3px solid #e2ae4d;background:#fff9eb;color:#786a4d;font-size:10px;border-radius:0 8px 8px 0}
-.lower{display:grid;grid-template-columns:1.1fr .9fr;gap:16px;margin-top:16px}.district-list{display:flex;flex-direction:column;gap:11px}.district-row{display:grid;grid-template-columns:62px minmax(100px,1fr) 105px;gap:10px;align-items:center}.district-name{font-size:11px;font-weight:700}.bar-track{height:8px;background:#edf2f0;border-radius:8px;overflow:hidden}.bar-fill{height:100%;background:linear-gradient(90deg,#80c9ae,#168b83);border-radius:8px}.district-value{text-align:right;font-size:10px;color:#667a80}.district-value strong{font-size:11px;color:#405960}
-.table-wrap{overflow:auto;max-height:270px}.table{width:100%;border-collapse:collapse;font-size:11px}.table th{text-align:left;color:#829096;font-size:10px;font-weight:700;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}.table td{padding:9px 8px;border-bottom:1px solid #f0f2f1;color:#50636a}.table tr{cursor:pointer}.table tbody tr:hover{background:#f3faf7}.table td:first-child{font-weight:700;color:#284a50}.num{text-align:right;font-variant-numeric:tabular-nums}
-.facility-list{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-height:280px;overflow:auto}.facility{border:1px solid #edf0ee;border-radius:10px;padding:9px 10px;cursor:pointer;transition:.15s}.facility:hover{border-color:#b7dad1;background:#f7fcfa}.facility-name{font-size:11px;font-weight:800;color:#355159}.facility-meta{font-size:10px;color:#879397;margin-top:3px;line-height:1.45}.facility-tag{display:inline-block;font-size:9px;color:#55786e;background:#edf7f2;padding:2px 6px;border-radius:99px;margin-top:5px}
-.method{margin-top:16px;background:#203c4b;color:#e5f1ef;border-radius:16px;padding:18px 21px;display:grid;grid-template-columns:1.1fr 1.4fr;gap:24px}.method h2{font-size:14px;margin:0 0 7px}.method p{margin:0;color:#b9cbcd;font-size:10px;line-height:1.65}.method-points{display:grid;grid-template-columns:1fr 1fr;gap:8px}.method-point{font-size:10px;color:#c3d1d2;padding-left:10px;border-left:2px solid #53b4a0}
-.sources{margin-top:16px;padding:17px 19px}.sources h2{font-size:13px;margin:0 0 10px}.source-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.source-card{border:1px solid #edf0ef;border-radius:10px;padding:11px 12px}.source-card strong{font-size:10px;display:block;color:#4b636a;margin-bottom:4px}.source-card a,.source-card span{font-size:10px;color:#7b8b90;line-height:1.5;overflow-wrap:anywhere}.footer{text-align:center;color:#9aa5a7;font-size:10px;margin-top:18px}
-@media(max-width:1050px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.lower{grid-template-columns:1fr}.map{height:430px}}
-@media(max-width:650px){header{height:62px;padding:0 16px}.topmeta .pill{display:none}main{padding:22px 14px 38px}.headline{display:block}.asof{text-align:left;margin-top:13px}.kpis{grid-template-columns:1fr 1fr;gap:9px}.kpi{min-height:100px;padding:13px}.kpi-value{font-size:23px}.side{display:flex}.map{height:390px}.panel{padding:15px}.map-panel{padding:15px 13px 10px}.lower{gap:11px}.facility-list{grid-template-columns:1fr}.method{grid-template-columns:1fr;gap:14px;padding:16px}.source-grid{grid-template-columns:1fr}.district-row{grid-template-columns:53px minmax(80px,1fr) 88px}}
+:root{--ink:#182a35;--muted:#71818a;--line:#e4e9e8;--paper:#fff;--canvas:#f4f7f5;--teal:#168b83;--teal2:#dff4ef;--amber:#e1a842;--red:#c75b47;--navy:#203c4b;--shadow:0 8px 28px rgba(24,51,59,.06)}
+*{box-sizing:border-box}body{margin:0;background:var(--canvas);color:var(--ink);font-family:Inter,"Pretendard","Apple SD Gothic Neo","Noto Sans KR",Arial,sans-serif;font-size:14px;line-height:1.5}a{color:#147d77;text-decoration:none}a:hover{text-decoration:underline}
+header{height:72px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 max(24px,calc((100vw - 1440px)/2));position:sticky;top:0;z-index:500}.brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:17px;letter-spacing:-.4px}.brand-mark{width:34px;height:34px;border-radius:11px;background:linear-gradient(145deg,#20a69a,#176b70);color:#fff;display:grid;place-items:center;font-size:17px;box-shadow:0 5px 12px #138d8533}.brand small{display:block;font-size:10px;color:#7f9298;letter-spacing:1.1px;font-weight:700;margin-top:-3px}.topmeta{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:12px}.pill{border:1px solid #d5e5df;background:#f1faf6;color:#327b6f;border-radius:999px;padding:6px 11px;font-size:11px;font-weight:700}
+main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--teal);font-size:11px;font-weight:800;letter-spacing:1.25px;text-transform:uppercase}.headline{display:flex;justify-content:space-between;align-items:flex-end;gap:20px;margin:5px 0 19px}h1{font-size:28px;line-height:1.25;letter-spacing:-1.1px;margin:5px 0 7px}.lead{color:#71818a;margin:0;font-size:13px}.asof{font-size:11px;color:#75858c;text-align:right;white-space:nowrap}.asof strong{display:block;color:#344c56;font-size:12px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin:17px 0}.kpi,.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}.kpi{padding:16px 18px;min-height:108px;position:relative;overflow:hidden}.kpi:after{content:"";position:absolute;width:82px;height:82px;border-radius:50%;right:-22px;top:-25px;background:#e9f7f3}.kpi:nth-child(2):after{background:#edf3ff}.kpi:nth-child(3):after{background:#fff4dd}.kpi:nth-child(4):after{background:#f8e9e4}.kpi-label{color:#70828a;font-size:11px;font-weight:700;position:relative;z-index:1}.kpi-value{font-size:26px;font-weight:800;letter-spacing:-.8px;margin:4px 0 1px;position:relative;z-index:1}.kpi-note{font-size:10px;color:#8a999e;position:relative;z-index:1}
+.filters{display:flex;flex-wrap:wrap;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 14px;margin:14px 0}.filters strong{font-size:11px;color:#60747a;margin-right:2px}.filters label{font-size:10px;color:#7d8c90}.select{border:1px solid #dce5e3;border-radius:9px;background:#fff;padding:8px 30px 8px 10px;color:#3c535c;font-size:12px;outline:none;min-width:155px}.select:focus{border-color:#71bbb1;box-shadow:0 0 0 3px #168b8317}
+.layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(330px,.82fr);gap:15px;align-items:stretch}.panel{padding:17px 19px}.panel-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:13px}.panel-title{font-size:15px;font-weight:800;letter-spacing:-.25px}.panel-sub{font-size:11px;color:#849399;margin-top:3px}.map-panel{padding:17px 17px 12px}.map-shell{position:relative}.map{height:510px;border-radius:12px;overflow:hidden;background:#e5efec;z-index:1}.map-legend{position:absolute;z-index:400;left:12px;bottom:12px;background:rgba(255,255,255,.96);border:1px solid #e0e7e4;border-radius:10px;padding:10px 12px;box-shadow:0 5px 18px #304a5017;font-size:10px;color:#52666c}.legend-title{font-size:10px;font-weight:800;margin-bottom:7px}.legend-row{display:flex;align-items:center;gap:7px;margin:4px 0}.swatch{width:13px;height:9px;border-radius:3px;display:inline-block;border:1px solid #ffffff}.map-status{position:absolute;right:12px;top:12px;z-index:1000;max-width:300px;padding:8px 11px;border-radius:9px;border:1px solid #e3d5aa;background:#fff9e8;color:#745f31;font-size:11px;box-shadow:0 4px 14px #304a5017}.map-status[hidden]{display:none}.map-caption{font-size:10px;color:#8a979b;padding:8px 2px 0}.leaflet-popup-content-wrapper{border-radius:10px}.leaflet-popup-content{font-family:inherit;font-size:12px;line-height:1.65}.leaflet-tooltip{font-family:inherit;font-size:11px;border:1px solid #dce5e2;border-radius:7px;box-shadow:0 2px 10px #304a5017}
+.side{display:flex;flex-direction:column;gap:13px}.selected-head{display:flex;justify-content:space-between;align-items:start;gap:10px}.selected-name{font-size:20px;letter-spacing:-.5px;font-weight:800}.district-chip{background:#eff7f4;color:#4b7c72;padding:5px 9px;border-radius:99px;font-size:10px;font-weight:700;white-space:nowrap}.selected-note{font-size:10px;color:#91a0a3;margin-top:2px}.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 10px}.stat{padding:10px 11px;background:#f7f9f8;border-radius:10px}.stat label{display:block;font-size:10px;color:#829197}.stat strong{display:block;font-size:16px;margin-top:2px}.stat-note{font-size:9px;color:#8d9a9e;margin-top:2px}.hr{height:1px;background:#edf0ef;margin:13px 0}.warning{margin-top:10px;padding:9px 10px;border-left:3px solid #e2ae4d;background:#fff9eb;color:#786a4d;font-size:10px;border-radius:0 8px 8px 0}.category-list{display:flex;flex-direction:column;gap:9px}.category-row{display:grid;grid-template-columns:minmax(80px,115px) 1fr 57px;gap:8px;align-items:center}.category-name{font-size:10px;color:#65777c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track{height:8px;background:#edf2f0;border-radius:8px;overflow:hidden}.bar-fill{height:100%;background:linear-gradient(90deg,#80c9ae,#168b83);border-radius:8px}.category-count{text-align:right;font-size:10px;color:#52666c;font-variant-numeric:tabular-nums}
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:15px}.district-list{display:flex;flex-direction:column;gap:10px}.district-row{display:grid;grid-template-columns:minmax(104px,1.1fr) minmax(70px,1fr) 108px 72px;gap:9px;align-items:center}.district-name{font-size:10px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.bar-track.slim{height:7px}.district-value{text-align:right;font-size:10px;color:#667a80}.district-value strong{font-size:10px;color:#405960}.district-resource{text-align:right;font-size:9px;color:#849399}.table-wrap{overflow:auto;max-height:300px}.table{width:100%;border-collapse:collapse;font-size:10px}.table th{text-align:left;color:#829096;font-size:9px;font-weight:700;padding:8px;border-bottom:1px solid var(--line);white-space:nowrap}.table td{padding:8px;border-bottom:1px solid #f0f2f1;color:#50636a;white-space:nowrap}.table td:first-child{font-weight:700;color:#284a50}.num{text-align:right;font-variant-numeric:tabular-nums}.quality-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.quality-card{border:1px solid #edf0ef;border-radius:10px;padding:11px 12px}.quality-card strong{display:block;font-size:16px;color:#344c56}.quality-card span{display:block;font-size:10px;color:#829197;margin-top:2px}.method{margin-top:15px;background:#203c4b;color:#e5f1ef;border-radius:16px;padding:17px 20px;display:grid;grid-template-columns:1fr 1.4fr;gap:22px}.method h2{font-size:14px;margin:0 0 7px}.method p{margin:0;color:#b9cbcd;font-size:10px;line-height:1.7}.method-points{display:grid;grid-template-columns:1fr 1fr;gap:8px}.method-point{font-size:10px;color:#c3d1d2;padding-left:10px;border-left:2px solid #53b4a0}.sources{margin-top:15px;padding:16px 18px}.sources h2{font-size:13px;margin:0 0 10px}.source-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}.source-card{border:1px solid #edf0ef;border-radius:10px;padding:10px 11px}.source-card strong{font-size:10px;display:block;color:#4b636a;margin-bottom:4px}.source-card a,.source-card span{font-size:9px;color:#7b8b90;line-height:1.5;overflow-wrap:anywhere}.footer{text-align:center;color:#9aa5a7;font-size:10px;margin-top:16px}
+@media(max-width:1050px){.layout{grid-template-columns:1fr}.side{display:grid;grid-template-columns:1fr 1fr}.lower{grid-template-columns:1fr}.map{height:440px}.source-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:650px){header{height:62px;padding:0 14px}.topmeta{font-size:10px}.topmeta .pill{display:none}main{padding:20px 12px 34px}.headline{display:block}.asof{text-align:left;margin-top:12px}.kpis{grid-template-columns:1fr 1fr;gap:8px}.kpi{min-height:94px;padding:12px}.kpi-value{font-size:22px}.filters{align-items:stretch;gap:7px}.filters strong{width:100%}.filters label{width:100%;margin-top:2px}.select{min-width:0;flex:1}.side{display:flex}.map{height:390px}.panel{padding:14px}.map-panel{padding:14px 12px 9px}.method{grid-template-columns:1fr;gap:13px;padding:15px}.method-points{grid-template-columns:1fr}.source-grid{grid-template-columns:1fr}.quality-grid{grid-template-columns:1fr}.district-row{grid-template-columns:minmax(90px,1.15fr) minmax(55px,.9fr) 87px 60px;gap:6px}}
+@media(min-width:651px){.quality-grid{grid-template-columns:repeat(4,1fr)}}
 </style>
 <link rel="stylesheet" href="/leaflet.css">
 </head>
 <body>
 <header>
   <div class="brand"><div class="brand-mark">⌖</div><div>CareMap AI<small>COMMUNITY CARE PLANNING</small></div></div>
-  <div class="topmeta"><span class="pill">초기 시제품 · 공개데이터 기반</span><span>울산광역시 시범분석</span></div>
+  <div class="topmeta"><span class="pill">전국 공개데이터 분석</span><span>지역사회 통합돌봄</span></div>
 </header>
 <main>
-  <div class="eyebrow">지역사회 통합돌봄 · 공간 탐색</div>
+  <div class="eyebrow">전국 지역사회 통합돌봄 · 지역별 탐색</div>
   <div class="headline">
-    <div><h1>돌봄 수요와 자원 분포를 한눈에</h1><p class="lead">행정동별 고령인구와 구·군별 노인돌봄지원플랫폼 분포를 함께 살펴보는 계획 지원 도구</p></div>
-    <div class="asof">자료 기준일<strong>인구 2026.10.31 · 플랫폼 2025.12.31</strong></div>
+    <div><h1>돌봄 인구와 서비스 자원 분포</h1><p class="lead">행정동별 고령인구·고령 1인 세대와 시군구별 통합돌봄 서비스 목록을 함께 살펴봅니다.</p></div>
+    <div class="asof">자료 기준일<strong>인구 2026.10.31 · 서비스 목록 2026.06.30</strong></div>
   </div>
-  <section class="kpis" id="kpis"></section>
+  <section class="kpis" id="kpis" aria-label="전국 요약"></section>
+  <section class="filters" aria-label="지역과 서비스 유형 필터">
+    <strong>지역·서비스 선택</strong>
+    <label for="provinceFilter">시도</label><select id="provinceFilter" class="select"><option value="">전국</option></select>
+    <label for="districtFilter">시군구</label><select id="districtFilter" class="select"><option value="">시군구 전체</option></select>
+    <label for="categoryFilter">서비스 대분류</label><select id="categoryFilter" class="select"><option value="">전체 유형</option></select>
+  </section>
   <section class="layout">
     <article class="panel map-panel">
-      <div class="panel-head">
-        <div><div class="panel-title">행정동별 65세 이상 인구</div><div class="panel-sub">원 크기는 인구 규모 · 색상은 상대적 인구수 · 점을 선택하면 상세 지표를 봅니다</div></div>
-        <select id="districtFilter" class="select" aria-label="구군 필터"><option value="">울산 전체</option></select>
-      </div>
-      <div class="map-shell"><div id="map" class="map"></div><div id="mapStatus" class="map-status" hidden>배경지도 타일을 불러오는 중</div><div class="map-legend"><div class="legend-title">표시 기준</div><div class="legend-row"><i class="dot" style="background:#4ca596"></i>상대적으로 적음</div><div class="legend-row"><i class="dot" style="background:#e2b34c"></i>중간</div><div class="legend-row"><i class="dot" style="background:#c75b47"></i>상대적으로 많음</div></div></div>
-      <div class="map-caption">OpenStreetMap 검색 결과 좌표에 65세 이상 인구를 표시합니다. node·way·relation 유형이 섞여 있으며, 시설 서비스 권역이나 실제 거주 위치가 아닙니다. 지도 타일: © OpenStreetMap contributors</div>
+      <div class="panel-head"><div><div class="panel-title">시도별 65세 이상 인구 비율</div><div class="panel-sub">색상은 주민등록인구 중 65세 이상 비율 · 시도를 선택하면 지역 자료를 좁혀 봅니다</div></div></div>
+      <div class="map-shell"><div id="map" class="map"></div><div id="mapStatus" class="map-status" hidden>배경지도를 불러오는 중입니다.</div><div class="map-legend"><div class="legend-title">65세 이상 인구 비율</div><div class="legend-row"><i class="swatch" style="background:#e9f4ef"></i>낮음</div><div class="legend-row"><i class="swatch" style="background:#a8d8c5"></i>중간</div><div class="legend-row"><i class="swatch" style="background:#168b83"></i>높음</div></div></div>
+      <div class="map-caption">시도 경계는 geoBoundaries/Natural Earth 2021 자료입니다. 2026년 자료의 전남광주통합특별시는 기존 광주·전남 경계를 합쳐 표시합니다. 기관별 위치 핀은 주소 누락과 좌표 검증 문제로 표시하지 않습니다.</div>
     </article>
     <aside class="side">
       <article class="panel">
-        <div class="panel-head"><div><div class="panel-title">선택 지역</div><div class="panel-sub">행정동 인구 통계 및 구·군별 시설 수</div></div><span id="districtChip" class="district-chip">구·군</span></div>
-        <div class="selected-head"><div><div id="selectedName" class="selected-name">지역 선택</div><div class="selected-note">행정동 대표점 · 거주 위치 아님</div></div></div>
+        <div class="panel-head"><div><div class="panel-title">선택 지역</div><div class="panel-sub">주민등록 인구 및 등록 서비스 항목</div></div><span id="scopeChip" class="district-chip">전국</span></div>
+        <div class="selected-head"><div><div id="selectedName" class="selected-name">전국</div><div id="selectedNote" class="selected-note">시도 또는 시군구를 선택하세요</div></div></div>
         <div id="selectedStats" class="stat-grid"></div>
-        <div class="hr"></div>
-        <div class="scenario-title">구·군별 시설 수 가정</div>
-        <div class="scenario-control"><label for="simCount">시설 수만 늘려 보는 단순 계산 (입지 추천 아님)</label><select id="simCount" class="select"><option value="0">추가 안 함</option><option value="1" selected>+ 1곳</option><option value="2">+ 2곳</option><option value="3">+ 3곳</option></select></div>
-        <div class="metric-box"><div class="metric-label">플랫폼 1곳당 65세 이상 인구 · 단순 비율</div><div id="metricChange" class="metric-change"></div><div id="metricFoot" class="metric-foot"></div></div>
-        <div class="warning">이 계산은 시설 수만 바꾸는 산술 비교입니다. 새 시설의 위치·정원·이용자·서비스 권역을 반영하지 않으므로 접근성 개선이나 실제 정책 효과로 해석하면 안 됩니다.</div>
+        <div class="warning">서비스 항목 수는 원자료의 프로그램·자원 행 수입니다. 고유 기관 수나 정원, 이용 가능 인원을 뜻하지 않습니다.</div>
       </article>
       <article class="panel">
-        <div class="panel-head"><div><div class="panel-title">구·군별 고령인구·시설 수</div><div class="panel-sub">65세 이상 인구 및 플랫폼 수 · 시설 수는 위치·정원과 다릅니다</div></div></div>
-        <div id="districtList" class="district-list"></div>
+        <div class="panel-head"><div><div class="panel-title">서비스 자원 유형</div><div id="categoryScope" class="panel-sub">전국 등록 항목의 대분류</div></div></div>
+        <div id="categoryBreakdown" class="category-list"></div>
       </article>
     </aside>
   </section>
   <section class="lower">
     <article class="panel">
-      <div class="panel-head"><div><div class="panel-title">인구 규모 기준 검토 후보</div><div class="panel-sub">65세 이상 인구가 많은 행정동 순 · 서비스 부족 확정 순위가 아닙니다</div></div></div>
-      <div class="table-wrap"><table class="table"><thead><tr><th>행정동</th><th>구·군</th><th class="num">65세 이상</th><th class="num">인구 비중</th></tr></thead><tbody id="ranking"></tbody></table></div>
+      <div class="panel-head"><div><div class="panel-title">시군구별 고령인구와 서비스 목록</div><div id="districtScope" class="panel-sub">65세 이상 인구가 많은 지역 · 서비스 수는 선택한 유형의 목록 행</div></div></div>
+      <div id="districtList" class="district-list"></div>
     </article>
     <article class="panel">
-      <div class="panel-head"><div><div class="panel-title">노인돌봄지원플랫폼 목록</div><div class="panel-sub">공개 주소 자료 · 시설 좌표와 실제 서비스 권역은 미확보</div></div></div>
-      <div id="facilityList" class="facility-list"></div>
+      <div class="panel-head"><div><div class="panel-title">행정동별 인구 참고 목록</div><div id="areaScope" class="panel-sub">65세 이상 인구가 많은 동 · 돌봄 부족 확정 순위가 아닙니다</div></div></div>
+      <div class="table-wrap"><table class="table"><thead><tr><th>시도</th><th>시군구</th><th>행정동</th><th class="num">65세 이상</th><th class="num">고령 1인 세대</th></tr></thead><tbody id="areaRanking"></tbody></table></div>
     </article>
   </section>
+  <section class="panel" style="margin-top:15px">
+    <div class="panel-head"><div><div class="panel-title">원자료 품질 참고</div><div class="panel-sub">전체 90,081개 서비스 자원 행을 확인한 결과</div></div></div>
+    <div id="qualitySummary" class="quality-grid"></div>
+  </section>
   <section class="method">
-    <div><h2>이 화면의 계산 범위</h2><p>행정안전부 주민등록 인구의 65세 이상 개인별 연령 열을 합산해 행정동 단위로 집계했습니다. 구·군별 플랫폼 수는 울산시 공개 현황의 시설 행을 행정구역 기준으로 세었습니다. 실증된 AI 수요예측이 아닌 공개자료 기반 초기 탐색 시제품입니다.</p></div>
+    <div><h2>해석 범위</h2><p>행정안전부의 행정동별 연령 인구와 1인 세대 자료를 행정기관 코드로 결합했습니다. 건강보험공단 통합돌봄 목록은 시도·시군구·서비스 분류별 행 수로 집계했습니다. 기준일이 서로 달라 화면에 출처별 날짜를 표시합니다.</p></div>
     <div class="method-points">
-      <div class="method-point">좌표는 OpenStreetMap 검색 결과입니다. node·way·relation과 행정복지센터 검색 결과가 섞여 있어 통계 경계 중심점으로 간주하지 않으며, 거리·도로시간을 계산하지 않습니다.</div>
-      <div class="method-point">플랫폼당 고령인구는 단순 비율입니다. 이용자 수, 인력, 정원, 대기시간을 대변하지 않습니다.</div>
-      <div class="method-point">인구 규모가 큰 동은 수요 검토 후보일 수 있지만 우선 투자지역을 단정하지 않습니다.</div>
-      <div class="method-point">정책 담당자가 현장·수용역량 자료와 함께 확인하도록 돕는 의사결정 참고자료입니다.</div>
+      <div class="method-point">65세 이상 인구와 고령 1인 세대는 지역 상황을 살펴보는 지표이지 개인별 돌봄 필요 판정이 아닙니다.</div>
+      <div class="method-point">통합돌봄 목록에는 장기요양·보건의료·일상생활·주거 지원 등 서로 다른 서비스가 포함됩니다. 전체 행을 노인 전용 시설 수로 해석하면 안 됩니다.</div>
+      <div class="method-point">기관별 정원·현원·대기 인원, 실제 이용량과 서비스 권역은 이 자료에 포함되지 않습니다.</div>
+      <div class="method-point">이 화면은 공개자료 탐색 시제품이며, 학습·검증된 AI 수요예측이나 입지 최적화 결과를 제공하지 않습니다.</div>
     </div>
   </section>
   <section class="panel sources">
     <h2>데이터 출처와 기준</h2>
     <div class="source-grid">
-      <div class="source-card"><strong>행정안전부 · 지역별(행정동) 성별 연령별 주민등록 인구수</strong><a href="https://www.data.go.kr/data/15097972/fileData.do" target="_blank" rel="noreferrer">공공데이터포털 원자료 · 기준 2026.10.31 · CSV</a></div>
-      <div class="source-card"><strong>울산광역시 · 노인돌봄지원플랫폼 현황</strong><a href="https://www.data.go.kr/data/15054169/fileData.do" target="_blank" rel="noreferrer">공공데이터포털 원자료 · 기준 2025.12.31 · CSV</a></div>
-      <div class="source-card"><strong>지도 좌표 출처</strong><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors · © ODbL</a><br><a href="https://www.ulsan.go.kr/u/welfare/contents.ulsan?mId=001006002000000000" target="_blank" rel="noreferrer">울산광역시 노인돌봄지원플랫폼 안내</a></div>
+      <div class="source-card"><strong>행정안전부 · 행정동별 연령별 주민등록 인구</strong><a href="https://www.data.go.kr/data/15097972/fileData.do" target="_blank" rel="noreferrer">기준 2026.10.31 · 월간 CSV</a></div>
+      <div class="source-card"><strong>행정안전부 · 행정동별 연령별 1인 세대</strong><a href="https://www.data.go.kr/data/15097973/fileData.do" target="_blank" rel="noreferrer">기준 2026.10.31 · 월간 CSV</a></div>
+      <div class="source-card"><strong>국민건강보험공단 · 통합돌봄 서비스 자원</strong><a href="https://www.data.go.kr/data/15173720/fileData.do" target="_blank" rel="noreferrer">기준 2026.06.30 · 약 9만 행 · 일회성 자료</a></div>
+      <div class="source-card"><strong>행정구역 참고 지도</strong><a href="https://www.geoboundaries.org/api/current/gbOpen/KOR/ADM1/" target="_blank" rel="noreferrer">geoBoundaries · Natural Earth 2021 · Public Domain</a><br><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">배경 타일: © OpenStreetMap contributors</a></div>
     </div>
   </section>
-  <div class="footer">CareMap AI는 지자체 담당자의 검토를 돕는 시제품입니다. 최종 정책 판단은 담당자의 현장 확인과 추가 자료를 바탕으로 이뤄져야 합니다.</div>
+  <div class="footer">CareMap AI는 지자체 담당자의 검토를 돕는 공개자료 기반 시제품입니다. 최종 정책 판단에는 현장 확인과 추가 자료가 필요합니다.</div>
 </main>
-
 <script src="/leaflet.js"></script>
-<script src="/data/ulsan_data.js"></script>
+<script src="/data/national_data.js"></script>
 <script>
-const { AREAS, PROVIDERS, DISTRICTS } = window.CAREMAP_DATA;
-const districtKey=record=>record.sido+":"+record.sigungu_code;
-const fmt=n=>Number(n).toLocaleString("ko-KR");
-const pct=(a,b)=>b?(100*a/b).toFixed(1)+"%":"-";
-const districtFilter=document.getElementById("districtFilter");
-const simCount=document.getElementById("simCount");
-const mapStatus=document.getElementById("mapStatus");
-let selected=AREAS[0];
-DISTRICTS.forEach(d=>{const o=document.createElement("option");o.value=d.district_id;o.textContent=d.sido+" "+d.sigungu;districtFilter.appendChild(o)});
+const DATA=window.CAREMAP_DATA;
+const fmt=n=>Number(n||0).toLocaleString('ko-KR');
+const pct=(a,b)=>b?(100*a/b).toFixed(1)+'%':'-';
+const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+const provinceFilter=document.getElementById('provinceFilter');
+const districtFilter=document.getElementById('districtFilter');
+const categoryFilter=document.getElementById('categoryFilter');
+const mapStatus=document.getElementById('mapStatus');
+const districtById=new Map(DATA.districts.map(d=>[d.districtId,d]));
+const provinceByName=new Map(DATA.provinces.map(p=>[p.sido,p]));
+const total={sido:'전국',districtCount:DATA.metadata.districtCount,dongCount:DATA.areas.length,population:0,elderly:0,elderlySinglePersonHouseholds:0,resourceRows:0,resourcesByMajor:{},missingAddressRows:DATA.metadata.resourceRowsWithMissingAddress,missingPhoneRows:DATA.metadata.resourceRowsWithMissingPhone};
+for(const p of DATA.provinces){total.population+=p.population;total.elderly+=p.elderly;total.elderlySinglePersonHouseholds+=p.elderlySinglePersonHouseholds;total.resourceRows+=p.resourceRows;for(const [category,count] of Object.entries(p.resourcesByMajor))total.resourcesByMajor[category]=(total.resourcesByMajor[category]||0)+count}
+
+function resourceCount(scope){const category=categoryFilter.value;return category?Number(scope.resourcesByMajor?.[category]||0):Number(scope.resourceRows||0)}
+function selectedDistrict(){return districtFilter.value?districtById.get(districtFilter.value):null}
+function selectedProvince(){return provinceFilter.value?provinceByName.get(provinceFilter.value):null}
+function currentScope(){return selectedDistrict()||selectedProvince()||total}
+function scopeName(){const district=selectedDistrict();if(district)return district.sigungu?district.sigungu+' · '+district.sido:district.sido;return selectedProvince()?.sido||'전국'}
+
+function populateFilters(){
+ DATA.provinces.forEach(p=>{const option=document.createElement('option');option.value=p.sido;option.textContent=p.sido;provinceFilter.appendChild(option)});
+ DATA.majorCategories.forEach(category=>{const option=document.createElement('option');option.value=category;option.textContent=category;categoryFilter.appendChild(option)});
+ updateDistrictOptions();
+}
+function updateDistrictOptions(){
+ const previous=districtFilter.value;
+ const province=provinceFilter.value;
+ const districts=DATA.districts.filter(d=>!province||d.sido===province);
+ districtFilter.replaceChildren(new Option(province?'시군구 전체':'시군구 전체',''));
+ for(const district of districts){const option=document.createElement('option');option.value=district.districtId;option.textContent=district.displayName+(district.sigungu?'':' · 시도 단위');districtFilter.appendChild(option)}
+ if(districts.some(d=>d.districtId===previous))districtFilter.value=previous;
+}
 function renderKpis(){
- const seniors=AREAS.reduce((s,a)=>s+a.elderly,0),population=AREAS.reduce((s,a)=>s+a.population,0);
- document.getElementById("kpis").innerHTML=[
-  ["울산 행정동","55개","5개 구·군 집계"],
-  ["65세 이상 인구",fmt(seniors),pct(seniors,population)+" · 주민등록 인구"],
-  ["노인돌봄지원플랫폼",fmt(PROVIDERS.length)+"곳","2025년 말 공개 현황"],
-  ["플랫폼 1곳당 고령인구",fmt(Math.round(seniors/PROVIDERS.length)),"도시 전체의 단순 비율 · 실제 공급능력 아님"]
- ].map(x=>'<article class="kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-value">'+x[1]+'</div><div class="kpi-note">'+x[2]+'</div></article>').join("");
+ const cards=[
+  ['시도',fmt(DATA.provinces.length)+'개','공개 인구자료의 전국 행정단위'],
+  ['행정동',fmt(DATA.areas.length)+'개','인구 자료 행정동 기준'],
+  ['65세 이상 인구',fmt(DATA.metadata.elderlyPopulation),'기준 2026년 10월'],
+  ['통합돌봄 자원 항목',fmt(DATA.metadata.resourceRows)+'행','기관 수가 아닌 프로그램·자원 행'],
+ ];
+ document.getElementById('kpis').innerHTML=cards.map(x=>'<article class="kpi"><div class="kpi-label">'+esc(x[0])+'</div><div class="kpi-value">'+esc(x[1])+'</div><div class="kpi-note">'+esc(x[2])+'</div></article>').join('');
 }
-const sorted=AREAS.map(a=>a.elderly).sort((a,b)=>a-b);
-const q1=sorted[Math.floor(sorted.length*.5)],q2=sorted[Math.floor(sorted.length*.8)],q3=sorted[Math.floor(sorted.length*.95)];
-function areaColor(a){return a.elderly>=q3?"#c75b47":a.elderly>=q2?"#e2b34c":a.elderly>=q1?"#56ab9a":"#94c8b7"}
-const map=L.map("map",{scrollWheelZoom:true}).setView([35.55,129.28],10);
-let loadedTiles=0,failedTiles=0;
-const baseTiles=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"});
-baseTiles.on("tileload",()=>{loadedTiles++;mapStatus.hidden=true});
-baseTiles.on("tileerror",()=>{failedTiles++;if(!loadedTiles){mapStatus.textContent="배경지도 타일을 기다리는 중 · 인구 위치 표시는 계속됩니다";mapStatus.hidden=false}});
-baseTiles.addTo(map);
-setTimeout(()=>{if(!loadedTiles){mapStatus.textContent=failedTiles?"배경지도 타일 연결 실패 · 네트워크를 확인해 주세요":"배경지도 응답 지연 · 잠시 후 새로고침해 주세요";mapStatus.hidden=false}},7000);
-const areaLayer={};
-function visibleAreas(){return AREAS.filter(a=>!districtFilter.value||districtKey(a)===districtFilter.value)}
-function drawMap(){
- Object.values(areaLayer).forEach(layer=>map.removeLayer(layer));
- Object.keys(areaLayer).forEach(k=>delete areaLayer[k]);
- visibleAreas().forEach(a=>{
-  const radius=Math.max(7,Math.min(19,5+Math.sqrt(a.elderly)/10));
-  const layer=L.circleMarker([a.lat,a.lon],{radius,color:a.code===selected.code?"#183e4e":"#fff",weight:a.code===selected.code?3:2,fillColor:areaColor(a),fillOpacity:.88});
-  layer.bindPopup("<b>"+a.sigungu+" "+a.dong+"</b><br>65세 이상 "+fmt(a.elderly)+"명<br>전체 인구 "+fmt(a.population)+"명<br><span style='color:#71818a'>행정동 집계 · 서비스 접근성 확정 지표 아님</span>");
-  layer.on("click",()=>{selected=a;updateSelection();drawMap()});
-  layer.addTo(map);areaLayer[a.code]=layer;
- });
-}
-function updateSelection(){
- if(!selected)return;
- const d=DISTRICTS.find(x=>x.district_id===districtKey(selected));
- document.getElementById("selectedName").textContent=selected.dong;
- document.getElementById("districtChip").textContent=selected.sigungu;
- document.getElementById("selectedStats").innerHTML=[
-  ["65세 이상 인구",fmt(selected.elderly)+"명"],["동 전체 인구",fmt(selected.population)+"명"],["65세 이상 비중",pct(selected.elderly,selected.population)],["구·군 플랫폼",fmt(d.facilities)+"곳"]
- ].map(x=>'<div class="stat"><label>'+x[0]+'</label><strong>'+x[1]+'</strong></div>').join("");
- const n=Number(simCount.value),before=d.elderly/d.facilities,after=d.elderly/(d.facilities+n);
- document.getElementById("metricChange").innerHTML='<strong>'+fmt(Math.round(before))+'</strong><span>→</span><strong>'+fmt(Math.round(after))+'</strong><span>명/곳</span>';
- document.getElementById("metricFoot").textContent=n?"플랫폼 "+fmt(d.facilities+n)+"곳으로 가정한 산술 비율 · 위치·수용능력·접근성 미반영":"현재 공개 시설 수 기준의 단순 비율 · 추가 가정 없음";
+function renderSelection(){
+ const scope=currentScope();
+ const isDistrict=Boolean(selectedDistrict()),isProvince=Boolean(selectedProvince());
+ document.getElementById('selectedName').textContent=scopeName();
+ document.getElementById('scopeChip').textContent=isDistrict?'시군구':isProvince?'시도':'전국';
+ document.getElementById('selectedNote').textContent=isDistrict?fmt(scope.dongCount)+'개 행정동 집계':isProvince?fmt(scope.districtCount)+'개 시군구 · '+fmt(scope.dongCount)+'개 행정동':'전체 행정구역 합산';
+ const stats=[
+  ['65세 이상 인구',fmt(scope.elderly)+'명',pct(scope.elderly,scope.population)+' · 전체 인구 중 비중'],
+  ['고령 1인 세대',fmt(scope.elderlySinglePersonHouseholds)+'세대','65세 이상 1인 세대 집계'],
+  ['서비스 자원 항목',fmt(resourceCount(scope))+'행',categoryFilter.value||'전체 대분류'],
+  ['행정동',fmt(scope.dongCount)+'개',isDistrict?'선택 시군구 안의 동':'집계 단위'],
+ ];
+ document.getElementById('selectedStats').innerHTML=stats.map(x=>'<div class="stat"><label>'+esc(x[0])+'</label><strong>'+esc(x[1])+'</strong><div class="stat-note">'+esc(x[2])+'</div></div>').join('');
+ document.getElementById('categoryScope').textContent=scopeName()+' · 서비스 대분류별 목록 행';
+ const entries=Object.entries(scope.resourcesByMajor||{}).sort((a,b)=>b[1]-a[1]);
+ const max=Math.max(1,...entries.map(([,count])=>count));
+ document.getElementById('categoryBreakdown').innerHTML=entries.length?entries.map(([name,count])=>'<div class="category-row"><div class="category-name" title="'+esc(name)+'">'+esc(name)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(2,100*count/max)+'%"></div></div><div class="category-count">'+fmt(count)+'행</div></div>').join(''):'<div class="panel-sub">선택 지역에 등록된 항목이 없습니다.</div>';
 }
 function renderDistricts(){
- const max=Math.max(...DISTRICTS.map(d=>d.elderly));
- document.getElementById("districtList").innerHTML=DISTRICTS.map(d=>'<div class="district-row"><div class="district-name">'+d.sigungu+'</div><div class="bar-track"><div class="bar-fill" style="width:'+100*d.elderly/max+'%"></div></div><div class="district-value"><strong>'+fmt(d.elderly)+'</strong>명 · '+d.facilities+'곳</div></div>').join("");
+ const province=selectedProvince();
+ let rows=DATA.districts.filter(d=>!province||d.sido===province.sido);
+ rows=[...rows].sort((a,b)=>b.elderly-a.elderly).slice(0,10);
+ const max=Math.max(1,...rows.map(d=>d.elderly));
+ document.getElementById('districtScope').textContent=(province?province.sido:'전국')+' · 65세 이상 인구 상위 지역';
+ document.getElementById('districtList').innerHTML=rows.map(d=>'<div class="district-row"><div class="district-name" title="'+esc(d.displayName+' '+d.sido)+'">'+esc(d.displayName)+'</div><div class="bar-track slim"><div class="bar-fill" style="width:'+Math.max(2,100*d.elderly/max)+'%"></div></div><div class="district-value"><strong>'+fmt(d.elderly)+'</strong>명</div><div class="district-resource">'+fmt(resourceCount(d))+'행</div></div>').join('');
 }
-function renderRank(){
- const rows=[...AREAS].sort((a,b)=>b.elderly-a.elderly).slice(0,8);
- document.getElementById("ranking").innerHTML=rows.map(a=>'<tr data-code="'+a.code+'"><td>'+a.dong+'</td><td>'+a.sigungu+'</td><td class="num">'+fmt(a.elderly)+'</td><td class="num">'+pct(a.elderly,a.population)+'</td></tr>').join("");
- document.querySelectorAll("#ranking tr").forEach(tr=>tr.addEventListener("click",()=>{selected=AREAS.find(a=>a.code===tr.dataset.code);districtFilter.value=districtKey(selected);updateSelection();drawMap();map.setView([selected.lat,selected.lon],12)}));
+function renderAreas(){
+ const province=selectedProvince(),district=selectedDistrict();
+ let rows=DATA.areas.filter(a=>(!province||a.sido===province.sido)&&(!district||a.sigungu===district.sigungu));
+ rows=[...rows].sort((a,b)=>b.elderly-a.elderly).slice(0,12);
+ document.getElementById('areaScope').textContent=(district?scopeName():province?.sido||'전국')+' · 65세 이상 인구가 많은 동';
+ document.getElementById('areaRanking').innerHTML=rows.map(a=>'<tr><td>'+esc(a.sido)+'</td><td>'+esc(a.sigungu||a.sido)+'</td><td>'+esc(a.dong)+'</td><td class="num">'+fmt(a.elderly)+'</td><td class="num">'+fmt(a.elderlySinglePersonHouseholds)+'</td></tr>').join('');
 }
-function renderProviders(){
- document.getElementById("facilityList").innerHTML=PROVIDERS.map(p=>'<div class="facility" data-district="'+districtKey(p)+'"><div class="facility-name">'+p.name+'</div><div class="facility-meta">'+p.address+'</div><span class="facility-tag">'+p.sido+' '+p.sigungu+'</span></div>').join("");
- document.querySelectorAll(".facility").forEach(el=>el.addEventListener("click",()=>{districtFilter.value=el.dataset.district;selected=AREAS.find(a=>districtKey(a)===el.dataset.district);updateSelection();drawMap();map.setView([selected.lat,selected.lon],11)}));
+function renderQuality(){
+ const totalRows=DATA.metadata.resourceRows;
+ const items=[
+  [fmt(DATA.metadata.resourceRowsWithMissingAddress),`기관주소 공란 · ${pct(DATA.metadata.resourceRowsWithMissingAddress,totalRows)}`],
+  [fmt(DATA.metadata.resourceRowsWithMissingPhone),`연락처 공란 · ${pct(DATA.metadata.resourceRowsWithMissingPhone,totalRows)}`],
+  [fmt(DATA.metadata.resourceProvinceOnlyRows),`시군구 없이 시도 단위로 등록된 항목 · 세종`],
+  [fmt(DATA.metadata.resourceEncodingReplacementChars),`원자료에서 복원되지 않은 문자 · 원본 파일 보존`],
+ ];
+ document.getElementById('qualitySummary').innerHTML=items.map(x=>'<div class="quality-card"><strong>'+esc(x[0])+'</strong><span>'+esc(x[1])+'</span></div>').join('');
 }
-districtFilter.addEventListener("change",()=>{if(districtFilter.value){selected=AREAS.find(a=>districtKey(a)===districtFilter.value);const pts=AREAS.filter(a=>districtKey(a)===districtFilter.value).map(a=>[a.lat,a.lon]);map.fitBounds(L.latLngBounds(pts).pad(.15))}else{map.fitBounds(L.latLngBounds(AREAS.map(a=>[a.lat,a.lon])).pad(.08))}updateSelection();drawMap()});
-simCount.addEventListener("change",()=>{updateSelection();drawMap()});
-renderKpis();renderDistricts();renderRank();renderProviders();updateSelection();drawMap();
-map.fitBounds(L.latLngBounds(AREAS.map(a=>[a.lat,a.lon])).pad(.08));
-setTimeout(()=>map.invalidateSize(true),350);window.addEventListener("resize",()=>map.invalidateSize());
-
+function rateColor(rate){if(rate>=.26)return '#168b83';if(rate>=.22)return '#4ca58f';if(rate>=.18)return '#83c3ac';if(rate>=.14)return '#b7dfcc';return '#e9f4ef'}
+function popupHtml(province){return '<b>'+esc(province.sido)+'</b><br>65세 이상 '+fmt(province.elderly)+'명 ('+pct(province.elderly,province.population)+')<br>고령 1인 세대 '+fmt(province.elderlySinglePersonHouseholds)+'세대<br>서비스 자원 목록 '+fmt(resourceCount(province))+'행<br><span style="color:#71818a">목록 행은 고유 기관 수나 정원이 아닙니다.</span>'}
+const map=L.map('map',{scrollWheelZoom:false}).setView([36.35,127.8],6);
+let loadedTiles=0,failedTiles=0;
+const tiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'© OpenStreetMap contributors'});
+tiles.on('tileload',()=>{loadedTiles++;mapStatus.hidden=true});
+tiles.on('tileerror',()=>{failedTiles++;if(!loadedTiles){mapStatus.textContent='배경지도 연결 대기 중 · 행정구역 지도는 계속 표시됩니다';mapStatus.hidden=false}});
+tiles.addTo(map);
+setTimeout(()=>{if(!loadedTiles){mapStatus.textContent=failedTiles?'배경지도 타일을 불러오지 못했습니다 · 네트워크를 확인해 주세요':'배경지도 응답이 지연되고 있습니다';mapStatus.hidden=false}},7000);
+const provinceLayer=L.geoJSON({type:'FeatureCollection',features:DATA.boundaries},{
+ style:feature=>{const province=provinceByName.get(feature.properties.sido);const selected=provinceFilter.value===feature.properties.sido;return {color:selected?'#174a4c':'#ffffff',weight:selected?2.8:1.3,fillColor:province?rateColor(province.elderlyRate):'#d8e4df',fillOpacity:selected ? .92 : .82}},
+ onEachFeature:(feature,layer)=>{const name=feature.properties.sido;layer.bindTooltip(esc(name),{sticky:true});layer.bindPopup(()=>popupHtml(provinceByName.get(name)||{}));layer.on('click',()=>{provinceFilter.value=name;districtFilter.value='';updateDistrictOptions();renderAll()})}
+}).addTo(map);
+map.fitBounds(provinceLayer.getBounds().pad(.06));
+function renderAll(){
+ updateDistrictOptions();
+ renderSelection();renderDistricts();renderAreas();renderQuality();
+ provinceLayer.setStyle(feature=>{const province=provinceByName.get(feature.properties.sido);const selected=provinceFilter.value===feature.properties.sido;return {color:selected?'#174a4c':'#ffffff',weight:selected?2.8:1.3,fillColor:province?rateColor(province.elderlyRate):'#d8e4df',fillOpacity:selected?.92:.82}});
+}
+provinceFilter.addEventListener('change',()=>{districtFilter.value='';renderAll()});
+districtFilter.addEventListener('change',()=>{const district=selectedDistrict();if(district)provinceFilter.value=district.sido;renderAll()});
+categoryFilter.addEventListener('change',renderAll);
+populateFilters();renderKpis();renderAll();
+setTimeout(()=>map.invalidateSize(true),350);window.addEventListener('resize',()=>map.invalidateSize());
 </script>
 </body>
 </html>

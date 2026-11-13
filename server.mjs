@@ -13,6 +13,8 @@ const files = new Map([
   ['/data/ulsan_admin_dong.csv', ['data/ulsan_admin_dong.csv', 'text/csv; charset=utf-8']],
   ['/data/ulsan_care_platforms.csv', ['data/ulsan_care_platforms.csv', 'text/csv; charset=utf-8']],
   ['/data/ulsan_district_summary.csv', ['data/ulsan_district_summary.csv', 'text/csv; charset=utf-8']],
+  ['/data/national_data.js', ['data/national_data.js', 'text/javascript; charset=utf-8']],
+  ['/data/national_district_summary.csv', ['data/national_district_summary.csv', 'text/csv; charset=utf-8']],
 ]);
 
 const server = createServer(async (req, res) => {

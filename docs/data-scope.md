@@ -1,30 +1,41 @@
-# Data scope and national expansion
+# Data scope and nationwide aggregation
 
-## Current pilot
+## Active nationwide data
 
-| Dataset | Use | Reference date | Limits |
-| --- | --- | --- | --- |
-| MOIS resident population by administrative dong ([source](https://www.data.go.kr/data/15097972/fileData.do)) | Population and age aggregates for Ulsan | 2026-10-31 | Aggregate population is a potential-demand proxy, not service eligibility or unmet need. |
-| Ulsan elder-care platform list ([source](https://www.data.go.kr/data/15054169/fileData.do)) | Names, district, address, operator, and phone | 2025-12-31 | Ulsan describes this local program as home elder support centers. It is not equivalent to every national long-term-care provider category. |
-| OpenStreetMap search results ([copyright and license](https://www.openstreetmap.org/copyright)) | Display coordinates for administrative-area population markers | Retrieved during data preparation | OSM objects include nodes, ways, and relations; some results resolve to administrative offices. These points are not a consistent boundary centroid and are not used to calculate distance. |
+| Dataset | Use | Reference date | Unit | Limits |
+| --- | --- | --- | --- | --- |
+| MOIS resident population by administrative dong ([source](https://www.data.go.kr/data/15097972/fileData.do)) | Total and age-specific resident counts; calculate age 65+ | 2026-10-31 | Administrative dong | Demographic proxy, not care eligibility or unmet need |
+| MOIS single-person households by administrative dong ([source](https://www.data.go.kr/data/15097973/fileData.do)) | Total and age-specific single-person household counts; calculate age 65+ | 2026-10-31 | Administrative dong | A one-person household is not proof of isolation or care need |
+| NHIS integrated-care service resources ([source](https://www.data.go.kr/data/15173720/fileData.do)) | Service-resource/program rows aggregated by province, district and category | 2026-06-30 | Province and district names; 90,081 data rows in downloaded CSV | One-time snapshot; rows are not unique institutions or service capacity; some fields are blank |
+| geoBoundaries/Natural Earth KOR ADM1 ([metadata](https://www.geoboundaries.org/api/current/gbOpen/KOR/ADM1/)) | Province-level map geometry | 2021 | 17 source polygons combined into 16 current data groups | Geography is a simplified map reference, not a current cadastral boundary source |
 
-The current prototype uses public, aggregate and service-location data. It does not use individual benefit records or data from SSIS internal systems. The local welfare-provider list gives the project a social-service planning use case; it should not be described as direct integration with SSIS data.
+## Join and aggregation rules
 
-## Source files and generated files
+- Join the MOIS population and single-person household files by their 10-digit `행정기관코드`, never by district display names.
+- Derive age 65+ as ages 65 through 109 plus the 110+ column, summing male and female counts.
+- Aggregate demographic counts from administrative dong to province and district using the source province/district labels; retain the first five digits of the administrative code as the district code for review.
+- The NHIS resource file has no administrative code. Its province/district names are normalized for whitespace and matched against MOIS names. Every named region in the downloaded file matched an MOIS region. Sejong entries with a blank district name are kept at Sejong’s province-wide level.
+- Preserve the NHIS service category labels. Aggregate row counts by major and minor category. Do not convert resource rows into facility counts.
+- The NHIS file contains 505 blank addresses and 3,559 blank phone fields. These rates are calculated from the 90,081 data rows.
+- Six NHIS text characters cannot be decoded from the downloaded CSV as `euc-kr`; generated strings use replacement characters, and the raw CSV is preserved unchanged.
+- Map boundaries contain separate 2021 Gwangju and South Jeolla polygons; both are grouped under `전남광주통합특별시` for this data snapshot.
 
-- `data/ulsan_admin_dong.csv` and `data/ulsan_care_platforms.csv` are the pilot's source files.
-- Both source files retain province and administrative-district codes (`sido`, `sigungu_code`) so later regional datasets can be joined by code rather than display name.
-- `service_type` preserves the source-specific category `ulsan_elder_care_platform`. Keep the original local category when adding another region; only map it to a shared category after checking the service definition.
-- `osm_type` and `osm_id` record the OSM object used for each population-marker coordinate. They do not establish that the point is a statistical centroid.
-- `scripts/build-data.mjs` validates and transforms the two source CSVs. It generates `data/ulsan_data.js` for the browser and `data/ulsan_district_summary.csv` from the same records.
-- Do not hand-edit generated files. Run `node scripts/build-data.mjs` after changing a source CSV; `npm start` runs this step automatically.
+## Current Ulsan pilot material
 
-## National expansion sequence
+`data/ulsan_admin_dong.csv`, `data/ulsan_care_platforms.csv`, and their generated artifacts remain as historical pilot references. The current dashboard does not load them. Ulsan's local elder-care platform category is distinct from the NHIS service taxonomy and must not be counted as equivalent without checking service definitions.
 
-1. Define a common record format for area code, source category, service type, reference date, source URL, and coordinate provenance while retaining the original regional category.
-2. Add one region-specific data adapter at a time. Do not combine service types only because their names look similar.
-3. Reconcile administrative codes and dates, and publish row counts, missing-address rates, and category mappings for each region.
-4. Validate the mapping and display with a second municipality before describing the system as nationally comparable.
-5. Add travel-time coverage or facility-placement optimization only after service locations, candidate sites, and movement assumptions are verified.
+## Missing information
 
-Potential future use of restricted or person-level social-security data requires a confirmed dataset, access approval, and a defined privacy-safe analysis. It is outside this public-data pilot.
+- Actual service use, applications, waitlists, unmet requests, and referral outcomes are not present in the active public datasets.
+- The NHIS resource snapshot does not provide provider-level capacity, staffing, operating status, or service area.
+- The current nationwide dashboard does not geocode service addresses. It does not calculate travel time, walking coverage, or facility placement effects.
+- A future AI prediction requires a separately approved and documented outcome dataset, a privacy-safe analysis basis, and validation against observed results.
+
+## Generated artifacts
+
+`scripts/build-data.mjs` reads the three raw public CSV/GeoJSON files in `data/source/`, validates administrative codes and count reconciliation, merges demographic indicators, aggregates service-resource rows, and generates:
+
+- `data/national_data.js` for the browser
+- `data/national_district_summary.csv` for review and reuse
+
+The portal CSV files are CP949 encoded. The build script decodes them as `euc-kr`; do not resave the raw inputs as UTF-8 without updating their provenance and decoding rules.
