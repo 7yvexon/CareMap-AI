@@ -64,22 +64,22 @@ h1{font-size:28px;line-height:1.25;letter-spacing:-1.1px;margin:5px 0 7px}.lead{
         <div><div class="panel-title">행정동별 65세 이상 인구</div><div class="panel-sub">원 크기는 인구 규모 · 색상은 상대적 인구수 · 점을 선택하면 상세 지표를 봅니다</div></div>
         <select id="districtFilter" class="select" aria-label="구군 필터"><option value="">울산 전체</option></select>
       </div>
-      <div class="map-shell"><div id="map" class="map"></div><div id="mapStatus" class="map-status" hidden>배경지도 타일을 불러오는 중</div><div class="map-legend"><div class="legend-title">표시 기준</div><div class="legend-row"><i class="dot" style="background:#4ca596"></i>상대적으로 적음</div><div class="legend-row"><i class="dot" style="background:#e2b34c"></i>중간</div><div class="legend-row"><i class="dot" style="background:#c75b47"></i>상대적으로 많음</div><div class="legend-row"><i class="legend-new"></i>가상 추가 거점</div></div></div>
+      <div class="map-shell"><div id="map" class="map"></div><div id="mapStatus" class="map-status" hidden>배경지도 타일을 불러오는 중</div><div class="map-legend"><div class="legend-title">표시 기준</div><div class="legend-row"><i class="dot" style="background:#4ca596"></i>상대적으로 적음</div><div class="legend-row"><i class="dot" style="background:#e2b34c"></i>중간</div><div class="legend-row"><i class="dot" style="background:#c75b47"></i>상대적으로 많음</div></div></div>
       <div class="map-caption">행정동 대표 좌표에 65세 이상 인구를 표시합니다. 시설 서비스 권역이나 실제 거주 위치가 아닙니다. 지도 타일: © OpenStreetMap contributors</div>
     </article>
     <aside class="side">
       <article class="panel">
-        <div class="panel-head"><div><div class="panel-title">선택 지역</div><div class="panel-sub">행정동 인구 통계 및 구·군 단위 공급 대체지표</div></div><span id="districtChip" class="district-chip">구·군</span></div>
+        <div class="panel-head"><div><div class="panel-title">선택 지역</div><div class="panel-sub">행정동 인구 통계 및 구·군별 시설 수</div></div><span id="districtChip" class="district-chip">구·군</span></div>
         <div class="selected-head"><div><div id="selectedName" class="selected-name">지역 선택</div><div class="selected-note">행정동 대표점 · 거주 위치 아님</div></div></div>
         <div id="selectedStats" class="stat-grid"></div>
         <div class="hr"></div>
-        <div class="scenario-title">자원 추가 시나리오</div>
-        <div class="scenario-control"><label for="simCount">선택한 구·군에 플랫폼을 추가한다고 가정</label><select id="simCount" class="select"><option value="0">추가 안 함</option><option value="1" selected>+ 1곳</option><option value="2">+ 2곳</option><option value="3">+ 3곳</option></select></div>
-        <div class="metric-box"><div class="metric-label">구·군 내 플랫폼당 65세 이상 인구 · 단순 공급 대체지표</div><div id="metricChange" class="metric-change"></div><div id="metricFoot" class="metric-foot"></div></div>
-        <div class="warning">정원·인력·대기자·서비스 권역 자료가 없어 실제 수용능력이나 돌봄 사각지대를 확정하지 않습니다. 시나리오는 시설 수만 바꾼 참고 계산입니다.</div>
+        <div class="scenario-title">구·군별 시설 수 가정</div>
+        <div class="scenario-control"><label for="simCount">시설 수만 늘려 보는 단순 계산 (입지 추천 아님)</label><select id="simCount" class="select"><option value="0">추가 안 함</option><option value="1" selected>+ 1곳</option><option value="2">+ 2곳</option><option value="3">+ 3곳</option></select></div>
+        <div class="metric-box"><div class="metric-label">플랫폼 1곳당 65세 이상 인구 · 단순 비율</div><div id="metricChange" class="metric-change"></div><div id="metricFoot" class="metric-foot"></div></div>
+        <div class="warning">이 계산은 시설 수만 바꾸는 산술 비교입니다. 새 시설의 위치·정원·이용자·서비스 권역을 반영하지 않으므로 접근성 개선이나 실제 정책 효과로 해석하면 안 됩니다.</div>
       </article>
       <article class="panel">
-        <div class="panel-head"><div><div class="panel-title">구·군별 수요·자원 현황</div><div class="panel-sub">65세 이상 인구 및 플랫폼 수 · 시설 수는 위치·정원과 다릅니다</div></div></div>
+        <div class="panel-head"><div><div class="panel-title">구·군별 고령인구·시설 수</div><div class="panel-sub">65세 이상 인구 및 플랫폼 수 · 시설 수는 위치·정원과 다릅니다</div></div></div>
         <div id="districtList" class="district-list"></div>
       </article>
     </aside>
@@ -132,7 +132,7 @@ function renderKpis(){
   ["울산 행정동","55개","5개 구·군 집계"],
   ["65세 이상 인구",fmt(seniors),pct(seniors,population)+" · 주민등록 인구"],
   ["노인돌봄지원플랫폼",fmt(PROVIDERS.length)+"곳","2025년 말 공개 현황"],
-  ["인구 대비 공급지표",fmt(Math.round(seniors/PROVIDERS.length)),"65세 이상 인구 ÷ 플랫폼 수"]
+  ["플랫폼 1곳당 고령인구",fmt(Math.round(seniors/PROVIDERS.length)),"도시 전체의 단순 비율 · 실제 공급능력 아님"]
  ].map(x=>'<article class="kpi"><div class="kpi-label">'+x[0]+'</div><div class="kpi-value">'+x[1]+'</div><div class="kpi-note">'+x[2]+'</div></article>').join("");
 }
 const sorted=AREAS.map(a=>a.elderly).sort((a,b)=>a-b);
@@ -145,7 +145,7 @@ baseTiles.on("tileload",()=>{loadedTiles++;mapStatus.hidden=true});
 baseTiles.on("tileerror",()=>{failedTiles++;if(!loadedTiles){mapStatus.textContent="배경지도 타일을 기다리는 중 · 인구 위치 표시는 계속됩니다";mapStatus.hidden=false}});
 baseTiles.addTo(map);
 setTimeout(()=>{if(!loadedTiles){mapStatus.textContent=failedTiles?"배경지도 타일 연결 실패 · 네트워크를 확인해 주세요":"배경지도 응답 지연 · 잠시 후 새로고침해 주세요";mapStatus.hidden=false}},7000);
-const areaLayer={};let scenarioLayer=null;
+const areaLayer={};
 function visibleAreas(){return AREAS.filter(a=>!districtFilter.value||a.sigungu===districtFilter.value)}
 function drawMap(){
  Object.values(areaLayer).forEach(layer=>map.removeLayer(layer));
@@ -157,9 +157,6 @@ function drawMap(){
   layer.on("click",()=>{selected=a;updateSelection();drawMap()});
   layer.addTo(map);areaLayer[a.code]=layer;
  });
- if(scenarioLayer){map.removeLayer(scenarioLayer);scenarioLayer=null}
- const n=Number(simCount.value);
- if(n>0){scenarioLayer=L.circleMarker([selected.lat,selected.lon],{radius:13,color:"#fff",weight:3,fillColor:"#3f7fe8",fillOpacity:1}).bindTooltip("가상 추가 거점 · "+selected.sigungu+" "+selected.dong).addTo(map)}
 }
 function updateSelection(){
  if(!selected)return;
@@ -169,9 +166,9 @@ function updateSelection(){
  document.getElementById("selectedStats").innerHTML=[
   ["65세 이상 인구",fmt(selected.elderly)+"명"],["동 전체 인구",fmt(selected.population)+"명"],["65세 이상 비중",pct(selected.elderly,selected.population)],["구·군 플랫폼",fmt(d.facilities)+"곳"]
  ].map(x=>'<div class="stat"><label>'+x[0]+'</label><strong>'+x[1]+'</strong></div>').join("");
- const n=Number(simCount.value),before=d.elderly/d.facilities,after=d.elderly/(d.facilities+n),change=n?((before-after)/before*100):0;
+ const n=Number(simCount.value),before=d.elderly/d.facilities,after=d.elderly/(d.facilities+n);
  document.getElementById("metricChange").innerHTML='<strong>'+fmt(Math.round(before))+'</strong><span>→</span><strong>'+fmt(Math.round(after))+'</strong><span>명/곳</span>';
- document.getElementById("metricFoot").textContent=n?"가정한 플랫폼 "+fmt(d.facilities+n)+"곳 · 단순 비율 "+change.toFixed(1)+"% 감소":"현재 공개 시설 수 기준 · 추가 시나리오 없음";
+ document.getElementById("metricFoot").textContent=n?"플랫폼 "+fmt(d.facilities+n)+"곳으로 가정한 산술 비율 · 위치·수용능력·접근성 미반영":"현재 공개 시설 수 기준의 단순 비율 · 추가 가정 없음";
 }
 function renderDistricts(){
  const max=Math.max(...DISTRICTS.map(d=>d.elderly));
