@@ -105,8 +105,8 @@ const populationDongCodesWithoutBoundaryCount = [...populationDongCodes]
 
 const intentRules = [
   { terms: ['식사', '반찬', '밥', '영양', '도시락', '배달', '급식'], categories: ['식사지원'] },
-  { terms: ['복약', '약', '약물'], categories: ['방문복약관리'] },
-  { terms: ['진료', '병원', '의사', '간호'], categories: ['방문진료', '방문간호', '건강-돌봄 통합지원'] },
+  { terms: ['복약', '약물', '복용', '약 먹', '약을 먹', '약 관리', '약 챙'], categories: ['방문복약관리'] },
+  { terms: ['왕진'], categories: ['방문진료'] },
   { terms: ['재활', '걷기', '운동'], categories: ['방문재활'] },
   { terms: ['목욕', '씻기'], categories: ['방문목욕'] },
   { terms: ['이동', '외출', '교통', '차량'], categories: ['이동지원'] },
@@ -117,17 +117,49 @@ const intentRules = [
   { terms: ['우울', '정신건강', '마음'], categories: ['정신건강관리'] },
 ];
 
-const stopWords = new Set(['어르신', '서비스', '돌봄', '도움', '지원', '찾아줘', '찾고', '찾는', '찾아', '싶어요', '있어요', '필요', '필요해요', '어려워', '어려워요', '준비가', '힘들어', '불편해요', '가능한']);
+function compactCategoryText(value) {
+  return normalize(value).replace(/[\s‐‑‒–—−-]/g, '');
+}
+
+function queryMentionsCategory(query, compactQuery, category) {
+  const compactCategory = compactCategoryText(category);
+  if (compactCategory.length > 2) return compactQuery.includes(compactCategory);
+
+  const suffixes = '(?:은|는|이|가|을|를|에|에서|으로|로|와|과|도|만|의|부터|까지)?';
+  return new RegExp(`(?:^|[\\s,.;:!?])${compactCategory}${suffixes}(?=$|[\\s,.;:!?])`, 'u').test(query);
+}
+
+const stopWords = new Set(['어르신', '서비스', '돌봄', '도움', '지원', '찾아줘', '찾고', '찾는', '찾아', '싶어요', '있어요', '필요', '필요해요', '어려워', '어려워요', '준비가', '힘들어', '불편해요', '몸이', '가능한']);
 
 function inferCategories(query) {
   const normalizedQuery = normalize(query);
-  const compactQuery = normalizedQuery.replace(/\s+/g, '');
-  const hospitalEscort = /(?:병원|진료|외래).{0,5}(?:동행|같이|함께|데려|모셔)|(?:동행|같이|함께|데려|모셔).{0,5}(?:병원|진료|외래)/.test(normalizedQuery)
+  const compactQuery = compactCategoryText(normalizedQuery);
+  const hospitalEscortPattern = /(?:병원|진료|외래).{0,5}(?:동행|같이|함께|데려|모셔)|(?:동행|같이|함께|데려|모셔).{0,5}(?:병원|진료|외래)/u;
+  const hospitalEscort = hospitalEscortPattern.test(normalizedQuery)
     || ['병원동행', '진료동행', '외래동행'].some(phrase => compactQuery.includes(phrase));
-  if (hospitalEscort) return ['이동지원'];
-  return [...new Set(intentRules
-    .filter(rule => rule.terms.some(term => normalizedQuery.includes(term)))
-    .flatMap(rule => rule.categories))];
+  // Remove only escort trigger words so separate service needs in the query still reach the rules.
+  const ruleQuery = hospitalEscort
+    ? normalizedQuery
+      .replace(/(?:병원|진료|외래)(.{0,5})(?:동행|같이|함께|데려|모셔)/gu, '$1')
+      .replace(/(?:동행|같이|함께|데려|모셔)(.{0,5})(병원|진료|외래)/gu, '$1')
+    : normalizedQuery;
+  const categories = new Set([
+    ...[...allowedIntentCategories].filter(category => queryMentionsCategory(normalizedQuery, compactQuery, category)),
+    ...intentRules
+      .filter(rule => rule.terms.some(term => ruleQuery.includes(term)))
+      .flatMap(rule => rule.categories),
+  ]);
+  if (/(?:집|댁|가정).{0,8}(?:간호사|간호)|(?:간호사|간호).{0,8}(?:집|댁|가정)/u.test(ruleQuery)) {
+    categories.add('방문간호');
+  }
+  if (/(?:집|댁|가정).{0,8}(?:의사|진료)|(?:의사|진료).{0,8}(?:집|댁|가정)/u.test(ruleQuery)) {
+    categories.add('방문진료');
+  }
+  if (/(?:통합\s*돌봄|돌봄\s*통합|(?:건강|보건).{0,4}(?:돌봄|복지).{0,4}통합|(?:돌봄|복지).{0,4}건강.{0,4}통합|통합.{0,4}(?:건강|돌봄|보건))/u.test(ruleQuery)) {
+    categories.add('건강-돌봄 통합지원');
+  }
+  if (hospitalEscort) categories.add('이동지원');
+  return [...categories];
 }
 
 function searchServiceResources({ query, province, district, category, limit, intentCategories = [] }) {
