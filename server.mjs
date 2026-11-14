@@ -48,6 +48,7 @@ const nationalDataJson = nationalDataSource.slice(nationalDataSource.indexOf('{'
 const nationalData = JSON.parse(nationalDataJson);
 const populationDongCodes = new Set(nationalData.areas.map(area => area.code));
 const expectedProvinceNames = new Set(nationalData.provinces.map(province => normalize(province.sido)).filter(Boolean));
+const allowedIntentCategories = new Set(nationalData.minorCategories.map(normalize).filter(Boolean));
 const compactRegionName = value => normalize(value).replace(/\s+/g, '');
 const boundariesByProvince = new Map();
 const boundariesByDistrict = new Map();
@@ -106,12 +107,12 @@ function inferCategories(query) {
     .flatMap(rule => rule.categories))];
 }
 
-function searchServiceResources({ query, province, district, category, limit }) {
+function searchServiceResources({ query, province, district, category, limit, intentCategories = [] }) {
   const normalizedQuery = normalize(query);
   const compactQuery = normalizedQuery.replace(/\s+/g, '');
   const terms = [...new Set((normalizedQuery.match(/[가-힣A-Za-z0-9]{2,}/g) ?? [])
     .filter(term => !stopWords.has(term)))];
-  const inferredCategories = inferCategories(normalizedQuery);
+  const inferredCategories = [...new Set([...inferCategories(normalizedQuery), ...intentCategories])];
   const results = [];
   const seen = new Set();
 
@@ -294,21 +295,31 @@ const server = createServer(async (req, res) => {
     const province = normalize(url.searchParams.get('province'));
     const district = normalize(url.searchParams.get('district'));
     const category = normalize(url.searchParams.get('category'));
+    const requestedIntentCategories = url.searchParams.getAll('intent').map(normalize);
     if (province.length > 60 || district.length > 60 || category.length > 60) {
       sendJsonError(res, '지역과 분류 값은 각각 60자 이하로 입력해 주세요.');
       return;
     }
+    if (requestedIntentCategories.length > 3
+      || requestedIntentCategories.some(name => !allowedIntentCategories.has(name))) {
+      sendJsonError(res, '의미 검색 유형은 제공되는 서비스 중분류에서 최대 3개까지 선택할 수 있습니다.');
+      return;
+    }
+    const intentCategories = [...new Set(requestedIntentCategories)];
     const rawLimit = url.searchParams.get('limit');
     const parsedLimit = rawLimit === null || normalize(rawLimit) === '' ? 8 : Number(rawLimit);
     const limit = Number.isInteger(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 12)) : 8;
-    const results = searchServiceResources({ query, province, district, category, limit });
-    const inferredCategories = inferCategories(query);
+    const results = searchServiceResources({ query, province, district, category, limit, intentCategories });
+    const inferredCategories = [...new Set([...inferCategories(query), ...intentCategories])];
 
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify({
       asOf: serviceResourcesAsOf,
       sourceRows: resourceRowCount,
-      searchMethod: '규칙 기반 키워드·서비스 유형 후보 검색',
+      searchMethod: intentCategories.length
+        ? '사용자 선택 의미 유형과 규칙·키워드 후보 검색'
+        : '규칙 기반 키워드·서비스 유형 후보 검색',
+      semanticIntentCategories: intentCategories,
       inferredCategories,
       results,
     }));

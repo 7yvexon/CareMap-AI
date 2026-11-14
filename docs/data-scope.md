@@ -31,13 +31,15 @@
 - District display names are whitespace-normalized when filtering boundary features because some boundary names concatenate city and district names (for example, `수원시장안구`).
 - Province background boundaries contain separate 2021 Gwangju and South Jeolla polygons; both are grouped under `전남광주통합특별시`. Selected lower-level areas use the 2026-10-01 SGIS-based boundaries.
 
-## Service search and proposed AI role
+## Service search and AI role
 
-The dashboard's service search filters the raw resource rows nationwide or by a selected province/district and ranks keyword and category matches. It returns the program, provider, contact, address, category, and the matching terms. The current implementation is a deterministic baseline; it does not call a language model and its ranking has not been validated. Dong selection does not narrow this source because it has no dong-level service rows.
+The dashboard's baseline service search filters the raw resource rows nationwide or by a selected province/district and ranks keyword and category matches. It returns source program, provider, contact, address, category, and matching terms. Dong selection does not narrow this source because it has no dong-level service rows.
+
+An optional browser-based semantic mode compares the input sentence with descriptions of the 28 observed minor categories using `multilingual-e5-small` ONNX embeddings. It shows the three closest categories as candidates; the user must select any categories to include before the follow-up search. The selected categories are combined with the deterministic keyword and rule baseline to retrieve source rows. If the model cannot load, the search continues with the baseline. The model is not fine-tuned or evaluated for social-welfare requests, always returns closest categories even for out-of-domain questions, and does not assess eligibility, urgency, risk, demand, or availability. Similarity scores are not probabilities. The user still needs to verify a candidate with its provider.
 
 The selected-region category panel loads `/api/service-summary` from the SQLite catalog and groups source program/resource rows by their original major category. If the API is unavailable, it falls back to the generated regional summary. These are record counts, not distinct institutions, service capacity, or current availability; the panel uses the whole category breakdown even when a category filter is selected.
 
-The proposed AI design is to extract a user's service need from natural language, map it to the source service taxonomy, retrieve matching records (RAG), and show the source fields that support each candidate. Generated text must not add eligibility or availability claims that are absent from the retrieved source. The current data supports resource discovery, not an individual risk or unmet-need prediction.
+The search returns retrieved source records rather than generated descriptions. It does not add eligibility or availability claims that are absent from the source. The current data supports resource discovery, not an individual risk or unmet-need prediction.
 
 Do not enter personal identifiers. The local server does not persist search requests. Keep the service search as a candidate-finding aid: eligibility, active status, capacity, and actual availability require confirmation by a provider or a human caseworker.
 

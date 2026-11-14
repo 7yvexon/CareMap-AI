@@ -57,6 +57,15 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 .search-interpretation strong{color:#315f54}
 .search-intent-tags{display:inline-flex;gap:5px;flex-wrap:wrap}
 .search-intent-tag{border:1px solid #cfe5db;border-radius:999px;background:#fff;padding:3px 8px;color:#337268;font-size:10px;font-weight:700}
+.search-intent-choice{cursor:pointer}
+.search-intent-choice[aria-pressed="true"]{background:#dff3e9;border-color:#6fb69a;color:#205f4c}
+.ai-data-scope{margin-top:8px;color:#52666c;font-size:10px}
+.ai-data-scope summary{width:max-content;cursor:pointer;color:#315f54;font-weight:700}
+.ai-data-scope p{margin:7px 0 0;line-height:1.6}
+.semantic-search-control{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;font-size:10px;color:#52666c}
+.semantic-search-control label{display:inline-flex;align-items:center;gap:6px;font-weight:700;cursor:pointer}
+.semantic-search-control input{accent-color:#168b83}
+#semanticSearchStatus{color:#71818a}
 </style>
 <link rel="stylesheet" href="/leaflet.css">
 </head>
@@ -99,7 +108,9 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
       <button class="search-example" type="button" data-search-example="복약관리">복약관리</button>
       <button class="search-example" type="button" data-search-example="방문요양">방문요양</button>
     </div>
-    <div class="ai-explainer"><strong>현재 데모:</strong> 입력 키워드와 서비스 분류를 이용하는 규칙 기반 검색입니다. <strong>제안 AI:</strong> 자연어에서 필요한 도움을 분류한 뒤, 공식 원자료 목록에서 출처가 표시된 후보를 검색하는 구조입니다. 이 화면은 생성형 AI의 판단이나 자격 판정을 제공하지 않습니다.</div>
+    <div class="semantic-search-control"><label for="semanticSearchToggle"><input id="semanticSearchToggle" type="checkbox"> 의미 기반 AI 유형 추천 사용</label><span id="semanticSearchStatus" role="status" aria-live="polite">선택하지 않으면 현재 규칙 기반 검색을 사용합니다.</span></div>
+    <div class="ai-explainer"><strong>AI 검색:</strong> 선택하면 multilingual-e5-small 임베딩 모델이 입력 문장과 사회서비스 유형 설명의 유사한 유형 후보를 찾습니다. 먼저 후보 3개를 보여주며, 맞는 유형을 직접 선택한 뒤 다시 눌러야 해당 유형으로 검색합니다. 범위를 벗어난 질문에도 가까운 유형이 보일 수 있습니다. 첫 사용에는 모델·토크나이저 약 140MB를 내려받고 이후 브라우저 캐시를 사용할 수 있습니다. 입력 문장은 외부 AI 추론 API로 보내지 않으며, 유형 선택 뒤 CareMap 서비스 검색 API로 후보를 찾습니다. 모델 사용에 실패하면 규칙 기반 검색으로 이어집니다. 유사도는 확률·자격·실제 이용 가능 여부가 아닙니다. <a href="https://huggingface.co/intfloat/multilingual-e5-small" target="_blank" rel="noreferrer">모델 출처·라이선스</a></div>
+    <details class="ai-data-scope"><summary>서비스 자료 범위</summary><p>검색 자료는 2026.06.30 기준 90,081건의 서비스 자원 기록 행이며, 고유 기관 수나 현재 이용 가능 수가 아닙니다. 포털 설명의 34개 중분류 중 이 수집본에서 확인되는 유형은 28개이고, 나머지 6개 유형이 보이지 않는 이유는 확인되지 않았습니다. 주소 505건과 연락처 3,559건은 비어 있습니다. 세종의 시군구명 없는 347건은 시도 전체 단위 기록이므로 세부 지역 검색에 반영되지 않을 수 있습니다. 현재 수집 목록에서 결과를 찾지 못해도 해당 지역에 서비스가 없다는 뜻은 아닙니다.</p></details>
     <div id="serviceSearchInterpretation" class="search-interpretation" aria-label="검색 해석 근거" hidden></div>
     <div id="serviceSearchStatus" class="search-status" role="status" aria-live="polite">전국 검색이 기본입니다. 시도·시군구를 고르면 검색 범위를 좁힙니다.</div>
     <div id="serviceSearchResults" class="service-results"></div>
@@ -153,18 +164,18 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
     </article>
   </section>
   <section id="resourceQualityPanel" class="panel" style="margin-top:15px">
-    <div class="panel-head"><div><div class="panel-title">원자료 품질 참고</div><div class="panel-sub">전체 90,081개 서비스 자원 행을 확인한 결과</div></div></div>
+    <div class="panel-head"><div><div class="panel-title">원자료 품질 참고</div><div class="panel-sub">서비스 자원 원자료 90,081행의 공란 상태</div></div></div>
     <div id="qualitySummary" class="quality-grid"></div>
   </section>
   <section id="elderlyMethod" class="method">
-    <div><h2 class="method-title">AI 적용·검증 설계</h2><p>현재 데모의 검색은 입력 키워드와 서비스 분류가 원자료에 일치하는지 계산하는 투명한 기준선입니다. 제안 AI는 자연어 요구 분류 → 서비스 유형 매핑 → 원자료 검색(RAG) → 근거와 함께 후보 제시 순서로 설계합니다.</p><div class="evaluation-note"><strong>검증 계획(아직 수행 전)</strong><br>현장 담당자 질의 사례로 상위 3개 후보의 적합도, 근거 일치율, 수작업 대비 탐색 시간, 연락처 최신성을 평가합니다.</div></div>
+    <div><h2 class="method-title">AI 검색 적용과 검증 계획</h2><p>기본 검색은 키워드·규칙 기반 기준선입니다. 선택형 의미검색은 브라우저 임베딩으로 가까운 서비스 유형 후보 3개를 보여주고, 사용자가 고른 유형을 검색에 추가합니다. 규칙 분류와 입력어 검색도 함께 실행하며 원자료에서 후보를 찾습니다. 모델은 사회복지 질의로 평가하지 않았습니다.</p><div class="evaluation-note"><strong>검증 계획(아직 수행 전)</strong><br>현장 담당자 질의 사례로 유형 후보·사용자 선택, 검색 후보의 근거 일치율, 수작업 대비 탐색 시간과 기기별 첫 로드·반복 응답 시간을 비교합니다.</div></div>
     <div class="method-points">
       <div class="method-point">65세 이상 인구와 고령 1인 세대는 지역 지표이지 개인별 돌봄 필요나 위기 판정이 아닙니다.</div>
       <div class="method-point">서비스 행 수는 고유 기관 수·정원·이용 가능 인원과 다르며, 모든 프로그램이 노인 전용은 아닙니다.</div>
       <div class="method-point">기관별 정원·현원·대기 인원·이용량·서비스 권역은 현재 원자료에 없습니다.</div>
       <div class="method-point">이름·주민등록번호 등 개인식별정보를 입력하지 마세요. 검색 내용을 저장하지 않으며 개인별 자격 판정이나 자동 배제는 하지 않습니다.</div>
       <div class="method-point">검색 후보는 현장 담당자나 이용자가 기관에 확인해야 하며 최종 판단을 대신하지 않습니다.</div>
-      <div class="method-point">현재 데모에는 학습·검증된 예측 모델이 연결되어 있지 않습니다. 검증 결과를 얻기 전까지 예측 성능을 주장하지 않습니다.</div>
+      <div class="method-point">개인별 위험·수요를 예측하는 학습 모델은 없습니다. 의미검색 임베딩은 유형 후보 비교에만 사용하며 사회복지 현장 질의로 검증되지 않았습니다.</div>
     </div>
   </section>
   <section id="childMethod" class="method" hidden>
@@ -215,7 +226,43 @@ const serviceSearchStatus=document.getElementById('serviceSearchStatus');
 const serviceSearchResults=document.getElementById('serviceSearchResults');
 const serviceSearchInterpretation=document.getElementById('serviceSearchInterpretation');
 const serviceSearchButton=document.getElementById('serviceSearchButton');
-let activeServiceSearchScope=null,activeServiceSearchQuery='',serviceSearchRequestId=0;
+const semanticSearchToggle=document.getElementById('semanticSearchToggle');
+const semanticSearchStatus=document.getElementById('semanticSearchStatus');
+let activeServiceSearchScope=null,activeServiceSearchQuery='',serviceSearchRequestId=0,semanticReviewState=null;
+let semanticPipelinePromise=null,semanticPassageVectorsPromise=null;
+const semanticModelId='Xenova/multilingual-e5-small';
+const semanticModelRevision='761b726dd34fb83930e26aab4e9ac3899aa1fa78';
+const semanticDescriptions={
+ '가사지원':'집안 청소, 세탁, 정리 등 혼자 하기 어려운 가사 일을 돕는 서비스',
+ '건강-돌봄 통합지원':'진료, 건강관리, 일상 돌봄이 따로 필요한 사람을 위해 여러 지원을 함께 연결하고 조정하는 서비스',
+ '건강관리':'건강 상담, 만성질환 관리, 운동, 영양, 예방 활동 등 일상 건강을 돕는 서비스',
+ '기타':'다른 분류에 해당하지 않는 사회보장 서비스',
+ '농업-돌봄연계':'농촌의 농업 활동과 돌봄 또는 사회참여를 연계하는 서비스',
+ '단기보호':'가족 돌봄자의 휴식이나 일시적 돌봄 공백을 위해 일정 기간 보호를 제공하는 서비스',
+ '돌봄특화주민참여':'지역 주민의 참여와 관계망을 활용해 돌봄을 지원하는 활동',
+ '방문간호':'간호 인력이 집으로 방문해 건강 상태를 살피고 간호를 제공하는 서비스',
+ '방문구강관리':'집이나 생활시설을 방문해 구강 건강과 치아 관리를 돕는 서비스',
+ '방문목욕':'거동이 불편한 사람의 집으로 방문해 목욕을 돕는 서비스',
+ '방문복약관리':'약 복용 시간과 방법을 확인하고 복약 관리를 돕는 서비스',
+ '방문요양':'요양보호사 등이 집으로 방문해 식사, 세면, 옷 입기 등 일상생활을 돕는 서비스',
+ '방문이미용':'집이나 생활시설을 방문해 머리 손질과 이미용을 돕는 서비스',
+ '방문재활':'집으로 방문해 운동, 보행, 신체 기능 회복과 재활을 돕는 서비스',
+ '방문진료':'의료진이 집으로 방문해 진료와 건강 상담을 제공하는 서비스',
+ '복지용구':'보행기, 휠체어, 안전손잡이 등 일상생활과 돌봄에 필요한 보조기기 지원',
+ '상시돌봄지원':'긴급 상황이나 지속적인 돌봄을 위해 상시 확인과 대응을 제공하는 서비스',
+ '스마트돌봄':'센서, 스마트 기기, 원격 확인 등 디지털 기술로 안전과 생활을 지원하는 서비스',
+ '식사지원':'식사 준비가 어렵거나 끼니를 챙기기 어려운 사람에게 도시락, 반찬, 급식 등을 제공하는 서비스',
+ '의사소통지원':'수어, 의사소통 보조, 통역 등 필요한 정보를 이해하고 표현하도록 돕는 서비스',
+ '이동지원':'병원이나 외출에 이동 수단 또는 동행 지원을 제공하는 서비스',
+ '일상생활지원':'장보기와 개인 활동 등 일상생활을 유지하도록 돕는 서비스',
+ '장애인건강관리':'장애인의 건강 상담, 건강검진, 만성질환 관리 등 건강 지원 서비스',
+ '정신건강관리':'우울, 불안, 스트레스 등 정신건강 상담과 정서 지원 서비스',
+ '주거공간개선':'문턱 제거, 손잡이 설치, 미끄럼 방지 등 집 안의 안전과 이동 편의를 개선하는 지원',
+ '주거지지원':'안정적인 주거를 위해 주거비와 주거 상담 등을 지원하는 서비스',
+ '주야간보호':'낮이나 밤 동안 시설에서 보호와 식사, 활동, 돌봄을 제공하는 서비스',
+ '치매전문관리':'치매 진단 이후 기억력 저하와 일상생활을 관리하고 가족을 지원하는 서비스',
+};
+const semanticIntentPassages=DATA.minorCategories.map(name=>({name,text:`passage: ${name}. ${semanticDescriptions[name]||name}`}));
 const modeButtons=[...document.querySelectorAll('[data-view-mode]')];
 const districtById=new Map(DATA.districts.map(d=>[d.districtId,d]));
 const districtByCode=new Map(DATA.districts.map(d=>[String(d.sigunguCode),d]));
@@ -230,19 +277,94 @@ function selectedDistrict(){return districtFilter.value?districtById.get(distric
 function selectedProvince(){return provinceFilter.value?provinceByName.get(provinceFilter.value):null}
 function selectedArea(){return dongFilter.value?areaByCode.get(dongFilter.value):null}
 function currentScope(){return selectedArea()||selectedDistrict()||selectedProvince()||total}
-function serviceSearchScopeKey(){return [provinceFilter.value,selectedDistrict()?.districtId||'',categoryFilter.value].join('\u001f')}
+function serviceSearchScopeKey(){return [provinceFilter.value,selectedDistrict()?.districtId||'',categoryFilter.value,semanticSearchToggle.checked?'semantic':'rules'].join('\u001f')}
 function clearSearchInterpretation(){serviceSearchInterpretation.replaceChildren();serviceSearchInterpretation.hidden=true}
-function renderSearchInterpretation(categories){
+function updateServiceSearchButtonLabel(){
+ if(!semanticSearchToggle.checked){serviceSearchButton.textContent='서비스 후보 찾기';return}
+ const currentReview=semanticReviewState&&semanticReviewState.query===document.getElementById('serviceQuery').value.trim()&&semanticReviewState.scope===serviceSearchScopeKey();
+ serviceSearchButton.textContent=currentReview
+  ?semanticReviewState.selected.size?'선택 유형으로 검색':'유형 없이 검색'
+  :'의미 유형 후보 보기';
+}
+async function getSemanticExtractor(){
+ if(!semanticPipelinePromise){
+  semanticSearchStatus.textContent='의미검색 모델과 실행 모듈을 준비하고 있습니다.';
+  semanticPipelinePromise=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2')
+   .then(({pipeline})=>pipeline('feature-extraction',semanticModelId,{
+    revision:semanticModelRevision,
+    dtype:'int8',
+    device:'wasm',
+    progress_callback:info=>{
+     if(info.status==='progress_total'&&Number.isFinite(info.progress))semanticSearchStatus.textContent='의미검색 모델 내려받기·준비 중 '+Math.round(info.progress)+'% · 첫 사용은 약 140MB입니다.';
+     else if(info.status==='ready')semanticSearchStatus.textContent='의미검색 모델이 준비되었습니다. 브라우저에서 입력 문장을 처리합니다.';
+    },
+   }))
+   .catch(error=>{semanticPipelinePromise=null;throw error});
+ }
+ return semanticPipelinePromise;
+}
+async function getSemanticPassageVectors(extractor){
+ if(!semanticPassageVectorsPromise){
+  semanticPassageVectorsPromise=extractor(semanticIntentPassages.map(item=>item.text),{pooling:'mean',normalize:true})
+   .then(output=>output.tolist())
+   .catch(error=>{semanticPassageVectorsPromise=null;throw error});
+ }
+ return semanticPassageVectorsPromise;
+}
+async function classifyServiceNeedSemantically(query){
+ const extractor=await getSemanticExtractor();
+ semanticSearchStatus.textContent='문장과 사회서비스 유형 설명의 의미를 비교하고 있습니다.';
+ const categoryVectors=await getSemanticPassageVectors(extractor);
+ const queryOutput=await extractor('query: '+query,{pooling:'mean',normalize:true});
+ const queryVector=queryOutput.tolist()[0];
+ const ranked=categoryVectors.map((vector,index)=>({
+  name:semanticIntentPassages[index].name,
+  score:queryVector.reduce((sum,value,dimension)=>sum+value*vector[dimension],0),
+ })).sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ko')).slice(0,3);
+ semanticSearchStatus.textContent='의미 유형을 찾았습니다. 유사도는 확률이나 지원 자격을 뜻하지 않습니다.';
+ return ranked;
+}
+function renderSearchInterpretation(categories,semanticScores=[],{selectable=false,semanticSelectedCategories=[],ruleCategories=[]}={}){
  clearSearchInterpretation();
  const matched=[...new Set(Array.isArray(categories)?categories.filter(value=>typeof value==='string'&&value.trim()):[])];
  const label=document.createElement('strong');
- label.textContent=matched.length?'분류 규칙이 찾은 지원 유형':'지원 유형 분류 없음';
+ label.textContent=semanticScores.length?(selectable?'의미 유사 유형 후보 · 맞는 항목만 선택':'의미 유사 유형 후보'):matched.length?'분류 규칙이 찾은 지원 유형':'지원 유형 분류 없음';
  serviceSearchInterpretation.append(label);
- if(matched.length){
+ if(semanticScores.length){
+  const tags=document.createElement('span');tags.className='search-intent-tags';
+  for(const item of semanticScores){
+   const selected=semanticSelectedCategories.includes(item.name);
+   const tag=document.createElement(selectable?'button':'span');
+   if(selectable){
+    tag.type='button';tag.classList.add('search-intent-choice');tag.setAttribute('aria-pressed',String(selected));
+    tag.addEventListener('click',()=>{
+     if(!semanticReviewState||semanticReviewState.scores!==semanticScores)return;
+     if(semanticReviewState.selected.has(item.name))semanticReviewState.selected.delete(item.name);
+     else semanticReviewState.selected.add(item.name);
+     renderSearchInterpretation([],semanticReviewState.scores,{selectable:true,semanticSelectedCategories:[...semanticReviewState.selected]});
+     updateServiceSearchButtonLabel();
+    });
+   }else if(selected)tag.classList.add('search-intent-choice');
+   tag.classList.add('search-intent-tag');
+   tag.textContent=item.name+' · 유사도 '+item.score.toFixed(3)+(selected&&!selectable?' · 선택됨':'');
+   tags.append(tag);
+  }
+  serviceSearchInterpretation.append(tags);
+  if(ruleCategories.length){
+   const ruleLabel=document.createElement('strong');ruleLabel.textContent='규칙이 찾은 유형';serviceSearchInterpretation.append(ruleLabel);
+   const ruleTags=document.createElement('span');ruleTags.className='search-intent-tags';
+   for(const value of ruleCategories){const tag=document.createElement('span');tag.className='search-intent-tag';tag.textContent=value;ruleTags.append(tag)}
+   serviceSearchInterpretation.append(ruleTags);
+  }
+  const note=document.createElement('span');
+  note.textContent=selectable?'유형 후보는 문장과의 유사도 순서이며, 범위 밖 질문에도 표시될 수 있습니다. 선택하지 않은 의미 유형은 검색에 사용하지 않습니다.':semanticSelectedCategories.length?'선택된 의미 유형과 규칙·검색어를 함께 검색했습니다. 유사도는 확률·적격 판정이 아니며 실제 이용 가능 여부를 보장하지 않습니다.':'의미 유형은 선택되지 않아 검색에 사용하지 않았습니다. 규칙과 입력어를 기준으로 검색했습니다.';
+  serviceSearchInterpretation.append(note);
+ }else if(matched.length){
   const tags=document.createElement('span');tags.className='search-intent-tags';
   for(const value of matched){const tag=document.createElement('span');tag.className='search-intent-tag';tag.textContent=value;tags.append(tag)}
   serviceSearchInterpretation.append(tags);
-  const note=document.createElement('span');note.textContent='분류 유형과 원자료 입력어 일치를 근거로 후보를 찾았습니다.';serviceSearchInterpretation.append(note);
+  const note=document.createElement('span');note.textContent='분류 유형과 원자료 입력어 일치를 근거로 후보를 찾았습니다.';
+  serviceSearchInterpretation.append(note);
  }else{
   const note=document.createElement('span');note.textContent='서비스 분류를 찾지 못해 프로그램명·분류·기관명·주소에 포함된 입력어를 중심으로 검색했습니다.';serviceSearchInterpretation.append(note);
  }
@@ -255,12 +377,15 @@ function clearOutdatedServiceSearch({preserveResults=false}={}){
  if(!scopeChanged&&!queryChanged)return;
  if(preserveResults&&!queryChanged){
   activeServiceSearchScope=serviceSearchScopeKey();
+  semanticReviewState=null;
   serviceSearchStatus.textContent='제공지역 경계를 지도에 표시했습니다. 검색 결과는 처음 선택한 검색 범위 기준입니다.';
+  updateServiceSearchButtonLabel();
   return;
  }
- activeServiceSearchScope=null;serviceSearchRequestId++;serviceSearchButton.disabled=false;serviceSearchResults.replaceChildren();
+ activeServiceSearchScope=null;semanticReviewState=null;serviceSearchRequestId++;serviceSearchButton.disabled=false;serviceSearchResults.replaceChildren();
  clearSearchInterpretation();
- serviceSearchStatus.textContent=scopeChanged?'지역 또는 서비스 유형이 바뀌었습니다. 새 조건으로 다시 검색해 주세요.':'검색어가 바뀌었습니다. 새 검색을 진행해 주세요.';
+ serviceSearchStatus.textContent=scopeChanged?'지역·서비스 유형·검색 방식이 바뀌었습니다. 새 조건으로 다시 검색해 주세요.':'검색어가 바뀌었습니다. 새 검색을 진행해 주세요.';
+ updateServiceSearchButtonLabel();
 }
 function scopeName(){const area=selectedArea(),district=selectedDistrict();if(area)return area.dong+' · '+(district?.sigungu||area.sido);if(district)return district.sigungu?district.sigungu+' · '+district.sido:district.sido;return selectedProvince()?.sido||'전국'}
 function childCenterScope(){return selectedArea()?selectedDistrict()||selectedProvince()||total:selectedDistrict()||selectedProvince()||total}
@@ -521,34 +646,68 @@ serviceSearchForm.addEventListener('submit',async event=>{
  if(query.length<2){activeServiceSearchScope=null;serviceSearchButton.disabled=false;serviceSearchResults.replaceChildren();clearSearchInterpretation();serviceSearchStatus.textContent='필요한 도움을 두 글자 이상 입력해 주세요.';return}
  activeServiceSearchScope=serviceSearchScopeKey();activeServiceSearchQuery=query;
  serviceSearchButton.disabled=true;
- serviceSearchStatus.textContent='공개 서비스 목록에서 후보를 찾고 있습니다.';
+ serviceSearchStatus.textContent=semanticSearchToggle.checked?'입력 문장과 서비스 유형 설명을 비교하고 있습니다.':'공개 서비스 목록에서 후보를 찾고 있습니다.';
  serviceSearchResults.innerHTML='';
  clearSearchInterpretation();
+ let semanticScores=[],intentCategories=[],semanticFallbackMessage='';
  try{
+  if(semanticSearchToggle.checked){
+   const reviewed=semanticReviewState&&semanticReviewState.query===query&&semanticReviewState.scope===activeServiceSearchScope;
+   if(!reviewed){
+    try{
+     semanticScores=await classifyServiceNeedSemantically(query);
+     if(requestId!==serviceSearchRequestId)return;
+     semanticReviewState={query,scope:activeServiceSearchScope,scores:semanticScores,selected:new Set()};
+     renderSearchInterpretation([],semanticScores,{selectable:true,semanticSelectedCategories:[]});
+     serviceSearchStatus.textContent='의미 유사 유형 후보를 확인하고 맞는 항목을 선택한 뒤 다시 눌러 주세요.';
+     return;
+    }catch(error){
+     if(requestId!==serviceSearchRequestId)return;
+     semanticFallbackMessage=' AI 모델을 불러오지 못해 규칙 기반 검색으로 전환했습니다.';
+     semanticSearchStatus.textContent='의미검색을 사용할 수 없어 규칙 기반 검색으로 전환했습니다.';
+    }
+   }else{
+    semanticScores=semanticReviewState.scores;
+    intentCategories=[...semanticReviewState.selected];
+   }
+  }
   const params=new URLSearchParams({query,limit:'8'});
   if(province)params.set('province',province);
   if(district?.sigungu)params.set('district',district.sigungu);
   if(categoryFilter.value)params.set('category',categoryFilter.value);
+  for(const category of intentCategories)params.append('intent',category);
   const response=await fetch('/api/resources?'+params.toString(),{headers:{Accept:'application/json'}});
   const payload=await response.json();
   if(!response.ok)throw new Error(payload.error||'서비스 목록을 검색하지 못했습니다.');
   if(requestId!==serviceSearchRequestId)return;
-  renderSearchInterpretation(payload.inferredCategories);
+  const semanticCategories=Array.isArray(payload.semanticIntentCategories)?payload.semanticIntentCategories:[];
+  const ruleCategories=(payload.inferredCategories||[]).filter(name=>!semanticCategories.includes(name));
+  renderSearchInterpretation(semanticScores.length?semanticCategories:payload.inferredCategories,semanticScores,{semanticSelectedCategories:intentCategories,ruleCategories});
   renderServiceResults(payload.results);
   const region=district?.sigungu?province+' '+district.sigungu:province||'전국';
   const dongNote=dong?' · 읍면동별 자원 검색은 없어 상위 시군구 범위로 검색했습니다':'';
+  const emptySearchHint=region==='전국'?'검색어를 바꾸거나 서비스 분류명(예: 식사지원, 이동지원)으로 검색해 보세요.':'전국 범위로 바꾸거나 서비스 분류명(예: 식사지원, 이동지원)으로 검색해 보세요.';
   serviceSearchStatus.textContent=payload.results.length
-   ?region+'에서 후보 '+fmt(payload.results.length)+'건을 찾았습니다 · '+payload.searchMethod+' · 기준 '+payload.asOf+dongNote
-   :region+'에서 일치 후보가 없습니다. 전국 범위로 바꾸거나 서비스 분류명(예: 식사지원, 이동지원)으로 검색해 보세요.'+dongNote;
+   ?region+'에서 후보 '+fmt(payload.results.length)+'건을 찾았습니다 · '+payload.searchMethod+' · 기준 '+payload.asOf+dongNote+semanticFallbackMessage
+   :region+'의 현재 수집 목록에서 일치 후보를 찾지 못했습니다. '+emptySearchHint+dongNote+semanticFallbackMessage;
  }catch(error){
   if(requestId===serviceSearchRequestId)serviceSearchStatus.textContent=error.message||'검색 중 오류가 발생했습니다.';
  }finally{
-  if(requestId===serviceSearchRequestId)serviceSearchButton.disabled=false;
+  if(requestId===serviceSearchRequestId){serviceSearchButton.disabled=false;updateServiceSearchButtonLabel()}
  }
+});
+semanticSearchToggle.addEventListener('change',()=>{
+ semanticSearchStatus.textContent=semanticSearchToggle.checked
+  ?'첫 사용은 모델 약 140MB 다운로드가 필요합니다. 입력 문장은 브라우저에서 분류합니다.'
+  :'선택하지 않으면 현재 규칙 기반 검색을 사용합니다.';
+ clearOutdatedServiceSearch();
+ updateServiceSearchButtonLabel();
 });
 document.getElementById('serviceQuery').addEventListener('input',clearOutdatedServiceSearch);
 document.querySelectorAll('[data-search-example]').forEach(button=>button.addEventListener('click',()=>{
  document.getElementById('serviceQuery').value=button.dataset.searchExample;
+ semanticReviewState=null;
+ updateServiceSearchButtonLabel();
  serviceSearchForm.requestSubmit();
 }));
 function childCoverageForProvince(sido){
