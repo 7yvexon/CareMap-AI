@@ -781,9 +781,12 @@ serviceSearchForm.addEventListener('submit',async event=>{
      semanticFallbackMessage=error.name==='SemanticSearchTimeoutError'
       ?' 의미 유형 분석이 지연되어 규칙 기반 검색으로 전환했습니다.'
       :' AI 모델을 불러오지 못해 규칙 기반 검색으로 전환했습니다.';
+     semanticSearchToggle.checked=false;
+     activeServiceSearchScope=serviceSearchScopeKey();
      semanticSearchStatus.textContent=error.name==='SemanticSearchTimeoutError'
-      ?'의미 유형 분석이 제한 시간 안에 끝나지 않아 규칙 기반 검색으로 전환했습니다.'
-      :'의미검색을 사용할 수 없어 규칙 기반 검색으로 전환했습니다.';
+      ?'의미 유형 분석이 지연되어 AI 추천을 껐습니다. 다음 검색은 규칙 기반으로 진행합니다. 다시 시도하려면 AI 추천을 켜 주세요.'
+      :'AI 모델을 불러오지 못해 추천을 껐습니다. 다음 검색은 규칙 기반으로 진행합니다. 다시 시도하려면 AI 추천을 켜 주세요.';
+     updateServiceSearchButtonLabel();
     }
    }else{
     semanticScores=semanticReviewState.scores;
