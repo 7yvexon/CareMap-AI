@@ -841,12 +841,15 @@ document.querySelectorAll('[data-search-example]').forEach(button=>button.addEve
  updateServiceSearchButtonLabel();
  serviceSearchForm.requestSubmit();
 }));
+function childReviewOnlyDistrictCount(districts=DATA.districts){
+  return districts.filter(district=>!Number(district.childCenterRecordRows||0)&&Number(district.childCenterAddressCoordinateReviewRows||0)>0).length;
+}
 function childCoverageForProvince(sido){
  const districts=DATA.districts.filter(district=>district.sido===sido);
  return {
   total:districts.length,
   observed:districts.filter(district=>Number(district.childCenterRecordRows||0)>0).length,
-  reviewOnly:districts.filter(district=>!Number(district.childCenterRecordRows||0)&&Number(district.childCenterAddressCoordinateReviewRows||0)>0).length,
+  reviewOnly:childReviewOnlyDistrictCount(districts),
  };
 }
 function childDistrictMapColor(district){
@@ -863,8 +866,11 @@ function childProvinceMapColor(sido){
 }
 function renderChildMapLegend(){
  const legend=document.getElementById('legendChildren');
+ const reviewOnlyLegend=childReviewOnlyDistrictCount()>0
+   ?'<div class="legend-row"><i class="swatch" style="background:#e2a842"></i>검토 후보만 있음</div>'
+   :'';
  legend.innerHTML=activeChildMapMetric==='centers'
-  ?'<div class="legend-title">센터 기록 관측 · 시군구 기준</div><div class="legend-row"><i class="swatch" style="background:#d8e1de"></i>이 수집본에서 미관측</div><div class="legend-row"><i class="swatch" style="background:#388a75"></i>기록 행 확인</div><div class="legend-row"><i class="swatch" style="background:#e2a842"></i>검토 후보만 있음</div><div class="legend-row"><i class="swatch" style="background:#84c3ab"></i>시도 내 일부 시군구에서 기록 확인</div><div class="legend-row"><i class="swatch" style="background:#286f60"></i>시도 내 모든 시군구에서 기록 확인</div><div class="legend-row"><i class="swatch" style="background:#dba43c"></i>선택 행정동</div>'
+   ?'<div class="legend-title">센터 기록 관측 · 시군구 기준</div><div class="legend-row"><i class="swatch" style="background:#d8e1de"></i>이 수집본에서 미관측</div><div class="legend-row"><i class="swatch" style="background:#388a75"></i>기록 행 확인</div>'+reviewOnlyLegend+'<div class="legend-row"><i class="swatch" style="background:#84c3ab"></i>시도 내 일부 시군구에서 기록 확인</div><div class="legend-row"><i class="swatch" style="background:#286f60"></i>시도 내 모든 시군구에서 기록 확인</div><div class="legend-row"><i class="swatch" style="background:#dba43c"></i>선택 행정동</div>'
   :'<div class="legend-title">0~17세 인구 비율</div><div class="legend-row"><i class="swatch" style="background:#f0f3fb"></i>8% 미만</div><div class="legend-row"><i class="swatch" style="background:#d4def4"></i>8~10%</div><div class="legend-row"><i class="swatch" style="background:#aebfe9"></i>10~12%</div><div class="legend-row"><i class="swatch" style="background:#8299d7"></i>12~15%</div><div class="legend-row"><i class="swatch" style="background:#526caf"></i>15% 이상</div><div class="legend-row"><i class="swatch" style="background:#e1a842"></i>선택 지역</div>';
 }
 function rateColor(rate){if(rate>=.26)return '#168b83';if(rate>=.22)return '#4ca58f';if(rate>=.18)return '#83c3ac';if(rate>=.14)return '#b7dfcc';return '#e9f4ef'}
@@ -898,6 +904,7 @@ function areaPopupHtml(feature){
 function applyModeUI(){
  const childMode=activeMode==='children';
  const centerMapMode=childMode&&activeChildMapMetric==='centers';
+ const reviewOnlyDistricts=childReviewOnlyDistrictCount();
  document.body.classList.toggle('child-mode',childMode);
  modeButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.viewMode===activeMode)));
  document.getElementById('headlineTitle').textContent=childMode?'아동·청소년 인구와 지역아동센터 자료 보기':'지역과 필요를 연결하는 돌봄 서비스 찾기';
@@ -924,7 +931,7 @@ function applyModeUI(){
  document.getElementById('legendChildren').hidden=!childMode;
  document.getElementById('mapPanelTitle').textContent=centerMapMode?'지역아동센터 표준데이터 기록 관측 지도':childMode?'0~17세 주민등록인구 비율 지도':'행정구역 지도';
  document.getElementById('mapPanelSub').textContent=childMode
-  ?centerMapMode?'초록은 기록 행 확인, 회색은 이 수집본에서 미관측, 주황은 검토 후보만 있는 시군구입니다. 시도 색은 일부 또는 모든 시군구의 상태를 요약합니다. 읍면동 경계에는 상위 시군구 상태를 반복해 표시하며, 시설 위치를 뜻하지 않습니다.'
+  ?centerMapMode?'초록은 기록 행 확인, 회색은 이 수집본에서 미관측, '+(reviewOnlyDistricts?'주황은 검토 후보만 있는 시군구('+fmt(reviewOnlyDistricts)+'곳)입니다.':'현재 검토 후보만 있는 시군구는 없습니다.')+' 시도 색은 일부 또는 모든 시군구의 상태를 요약합니다. 읍면동 경계에는 상위 시군구 상태를 반복해 표시하며, 시설 위치를 뜻하지 않습니다.'
   :'지도 색상은 선택 지역 인구 중 0~17세 비율입니다. 지역을 눌러 주민등록 인구와 상위 시군구 센터 기록 상태를 확인하세요.'
   :'시도 → 시군구 → 읍면동을 선택하면 해당 범위로 확대하고 읍면동 경계를 표시합니다. 지도 경계도 눌러 지역을 고를 수 있습니다.';
  document.getElementById('mapCaption').textContent=childMode

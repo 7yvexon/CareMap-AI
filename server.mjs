@@ -345,6 +345,10 @@ const server = createServer(async (req, res) => {
       sendJsonError(res, '지역과 분류 값은 각각 60자 이하로 입력해 주세요.');
       return;
     }
+    if (district && !province) {
+      sendJsonError(res, '시군구 범위를 지정하려면 시도를 함께 입력해 주세요.');
+      return;
+    }
     if (requestedIntentCategories.length > 3
       || requestedIntentCategories.some(name => !allowedIntentCategories.has(name))) {
       sendJsonError(res, '의미 검색 유형은 제공되는 서비스 중분류에서 최대 3개까지 선택할 수 있습니다.');
