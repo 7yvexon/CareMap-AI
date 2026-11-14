@@ -45,7 +45,9 @@ const boundaryCollection = JSON.parse(gunzipSync(await readFile(boundaryPath)).t
 const boundaryFeatureCount = boundaryCollection.features?.length ?? 0;
 const nationalDataSource = await readFile(join(root, 'data/national_data.js'), 'utf8');
 const nationalDataJson = nationalDataSource.slice(nationalDataSource.indexOf('{'), nationalDataSource.lastIndexOf('}') + 1);
-const populationDongCodes = new Set(JSON.parse(nationalDataJson).areas.map(area => area.code));
+const nationalData = JSON.parse(nationalDataJson);
+const populationDongCodes = new Set(nationalData.areas.map(area => area.code));
+const expectedProvinceNames = new Set(nationalData.provinces.map(province => normalize(province.sido)).filter(Boolean));
 const compactRegionName = value => normalize(value).replace(/\s+/g, '');
 const boundariesByProvince = new Map();
 const boundariesByDistrict = new Map();
@@ -69,6 +71,13 @@ for (const feature of boundaryCollection.features ?? []) {
   boundariesByDistrict.get(districtKey).push(feature);
   if (code) boundariesByDongCode.set(code, feature);
 }
+
+const provincesWithoutBoundaries = [...expectedProvinceNames]
+  .filter(province => !boundariesByProvince.has(province))
+  .sort((a, b) => a.localeCompare(b, 'ko'));
+const unexpectedIndexedProvinces = [...boundariesByProvince.keys()]
+  .filter(province => !expectedProvinceNames.has(province))
+  .sort((a, b) => a.localeCompare(b, 'ko'));
 
 const intentRules = [
   { terms: ['식사', '반찬', '밥', '영양', '도시락', '배달', '급식'], categories: ['식사지원'] },
@@ -170,12 +179,22 @@ const server = createServer(async (req, res) => {
       }
     }))).every(Boolean);
     const serviceSearchReady = resourceRowCount > 0 && serviceCatalog.filterIndexCount === 3;
-    const areaBoundariesReady = boundaryFeatureCount > 0 && boundariesByDongCode.size > 0;
+    const provinceBoundaryCoverageReady = expectedProvinceNames.size > 0
+      && provincesWithoutBoundaries.length === 0
+      && unexpectedIndexedProvinces.length === 0
+      && boundariesByProvince.size === expectedProvinceNames.size;
+    const areaBoundariesReady = boundaryFeatureCount > 0
+      && boundariesByDongCode.size > 0
+      && provinceBoundaryCoverageReady;
     const ready = pageAssetsReady && serviceSearchReady && areaBoundariesReady;
     const payload = {
       ready,
       serviceResourceRowCount: resourceRowCount,
       adminBoundaryFeatureCount: boundaryFeatureCount,
+      expectedProvinceCount: expectedProvinceNames.size,
+      indexedProvinceCount: boundariesByProvince.size,
+      provincesWithoutBoundaries,
+      unexpectedIndexedProvinces,
       referenceDates: {
         serviceResources: serviceResourcesAsOf,
         adminBoundaries: adminBoundariesAsOf,

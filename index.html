@@ -287,15 +287,25 @@ async function checkSystemStatus(){
   const payload=await response.json();
   const checkNames={pageAssets:'화면 파일',serviceSearch:'서비스 검색 자료',areaBoundaries:'행정경계'};
   const failedChecks=Object.entries(checkNames).filter(([key])=>payload.checks?.[key]===false).map(([,label])=>label);
+  const boundaryCounts=Number.isInteger(payload.indexedProvinceCount)&&Number.isInteger(payload.expectedProvinceCount)
+   ?`시도 경계 ${fmt(payload.indexedProvinceCount)}/${fmt(payload.expectedProvinceCount)}`:'';
+  const boundaryProblems=[
+   Array.isArray(payload.provincesWithoutBoundaries)&&payload.provincesWithoutBoundaries.length?'경계 누락: '+payload.provincesWithoutBoundaries.join(', '):'',
+   Array.isArray(payload.unexpectedIndexedProvinces)&&payload.unexpectedIndexedProvinces.length?'예상 밖 시도: '+payload.unexpectedIndexedProvinces.join(', '):'',
+  ].filter(Boolean);
   if(!response.ok||payload.ready!==true){
    systemStatus.dataset.state='error';
    systemStatus.textContent=failedChecks.length===1?failedChecks[0]+' 확인 필요':'자료 상태 확인 필요';
-   systemStatus.title=failedChecks.length?'준비되지 않은 항목: '+failedChecks.join(' · '):'서버가 준비 상태를 반환하지 않았습니다. 서버 로그를 확인해 주세요.';
+   if(failedChecks.length===1&&failedChecks[0]==='행정경계'&&boundaryCounts)systemStatus.textContent+=' ('+payload.indexedProvinceCount+'/'+payload.expectedProvinceCount+')';
+   const boundaryDetails=[boundaryCounts,...boundaryProblems].filter(Boolean).join(' · ');
+   systemStatus.title=(failedChecks.length?'준비되지 않은 항목: '+failedChecks.join(' · '):'서버가 준비 상태를 반환하지 않았습니다. 서버 로그를 확인해 주세요.')
+    +(boundaryDetails?' · '+boundaryDetails:'');
    return;
   }
   systemStatus.dataset.state='ready';
   systemStatus.textContent='자료 준비됨';
-  systemStatus.title='검색 자료 '+fmt(payload.serviceResourceRowCount)+'행 · 행정경계 '+fmt(payload.adminBoundaryFeatureCount)+'개 · 기준 '+(payload.referenceDates?.serviceResources||'-')+' / '+(payload.referenceDates?.adminBoundaries||'-');
+  systemStatus.title='검색 자료 '+fmt(payload.serviceResourceRowCount)+'행 · 행정경계 '+fmt(payload.adminBoundaryFeatureCount)+'개'
+   +(boundaryCounts?' · '+boundaryCounts:'')+' · 기준 '+(payload.referenceDates?.serviceResources||'-')+' / '+(payload.referenceDates?.adminBoundaries||'-');
  }catch{
   systemStatus.dataset.state='error';
   systemStatus.textContent='서버 연결 확인 필요';
@@ -668,6 +678,8 @@ async function drawSelectedAreaMap(){
  if(detailedAreaLayer){map.removeLayer(detailedAreaLayer);detailedAreaLayer=null}
  if(!map||!provinceLayer)return;
  if(!province){regionMapStatus.textContent='시도를 선택하면 시군구·읍면동 경계가 지도에 표시됩니다.';map.fitBounds(provinceLayer.getBounds().pad(.06));return}
+ const provinceFeatureLayer=provinceLayer.getLayers().find(layer=>layer.feature?.properties.sido===province.sido);
+ if(provinceFeatureLayer)map.fitBounds(provinceFeatureLayer.getBounds().pad(.06));
  const params=new URLSearchParams({province:province.sido});
  if(district?.sigungu)params.set('district',district.sigungu);
  regionMapStatus.textContent='선택한 지역의 행정경계를 불러오고 있습니다.';
@@ -701,7 +713,7 @@ async function drawSelectedAreaMap(){
    ?region+'의 행정경계 폴리곤이 자료에 없어 상위 시군구 경계를 표시합니다. 경계 기준 2026.10.01.'
    :region+' 범위의 읍면동 경계 '+fmt(payload.features.length)+'개를 표시합니다 · 경계 기준 2026.10.01.';
  }catch(error){
-  if(request===boundaryRequest)regionMapStatus.textContent=error.message||'행정경계를 불러오지 못했습니다.';
+  if(request===boundaryRequest)regionMapStatus.textContent=(error.message||'행정경계를 불러오지 못했습니다.')+' 시도 경계를 표시합니다.';
  }
 }
 function selectArea(area){
