@@ -66,6 +66,11 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 .semantic-search-control label{display:inline-flex;align-items:center;gap:6px;font-weight:700;cursor:pointer}
 .semantic-search-control input{accent-color:#168b83}
 #semanticSearchStatus{color:#71818a}
+.panel-title[role="heading"]{margin:0}
+.panel-sub,.kpi-note,.map-caption,.selected-note,.stat label,.stat-note,.district-resource,.table th,.quality-card span,.source-card a,.source-card span,.coverage-sub,.service-summary-status,.search-examples span,.service-provider,.service-meta,.search-caveat,#semanticSearchStatus{color:#566b71}
+.area-select-button{border:0;background:transparent;color:#176c67;padding:2px 0;font:inherit;font-weight:700;text-align:left;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.area-select-button:focus-visible{outline:2px solid #168b83;outline-offset:2px;border-radius:3px}
+@media(max-width:420px){.district-row{grid-template-columns:minmax(0,1fr) auto;gap:4px 8px}.district-name{grid-column:1;grid-row:1}.district-value{grid-column:2;grid-row:1}.district-row>.bar-track{grid-column:1;grid-row:2}.district-resource{grid-column:2;grid-row:2}}
 </style>
 <link rel="stylesheet" href="/leaflet.css">
 </head>
@@ -228,6 +233,7 @@ const serviceSearchInterpretation=document.getElementById('serviceSearchInterpre
 const serviceSearchButton=document.getElementById('serviceSearchButton');
 const semanticSearchToggle=document.getElementById('semanticSearchToggle');
 const semanticSearchStatus=document.getElementById('semanticSearchStatus');
+document.querySelectorAll('.panel-title').forEach(title=>{title.setAttribute('role','heading');title.setAttribute('aria-level','2')});
 let activeServiceSearchScope=null,activeServiceSearchQuery='',serviceSearchRequestId=0,semanticReviewState=null;
 let semanticAttemptSequence=0,activeSemanticAttemptId=0;
 let semanticPipelinePromise=null,semanticPassageVectorsPromise=null;
@@ -626,8 +632,8 @@ function renderAreas(){
  document.getElementById('areaMetricHeader').textContent=childMode?'0~17세 인구':'65세 이상';
  document.getElementById('areaDetailHeader').textContent=childMode?'전체 인구 중 비율':'고령 1인 세대';
  document.getElementById('areaScope').textContent=(area?scopeName():district?scopeName():province?.sido||'전국')+' · '+(childMode?'0~17세 주민등록인구가 많은 동':'65세 이상 인구가 많은 동');
- document.getElementById('areaRanking').innerHTML=rows.map(a=>'<tr data-area-code="'+esc(a.code)+'" tabindex="0" title="선택하여 지도에서 보기"><td>'+esc(a.sido)+'</td><td>'+esc(a.sigungu||a.sido)+'</td><td>'+esc(a.dong)+'</td><td class="num">'+fmt(childMode?a.children0To17:a.elderly)+'</td><td class="num">'+(childMode?pct(a.children0To17,a.population):fmt(a.elderlySinglePersonHouseholds))+'</td></tr>').join('');
- document.querySelectorAll('#areaRanking [data-area-code]').forEach(row=>{row.addEventListener('click',()=>{const area=areaByCode.get(row.dataset.areaCode);if(area)selectArea(area)});row.addEventListener('keydown',event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();const area=areaByCode.get(row.dataset.areaCode);if(area)selectArea(area)}})});
+ document.getElementById('areaRanking').innerHTML=rows.map(a=>'<tr data-area-code="'+esc(a.code)+'" title="선택하여 지도에서 보기"><td>'+esc(a.sido)+'</td><td>'+esc(a.sigungu||a.sido)+'</td><td><button type="button" class="area-select-button" aria-label="'+esc(a.sido+' '+(a.sigungu||a.sido)+' '+a.dong+' 지도에서 선택')+'">'+esc(a.dong)+'</button></td><td class="num">'+fmt(childMode?a.children0To17:a.elderly)+'</td><td class="num">'+(childMode?pct(a.children0To17,a.population):fmt(a.elderlySinglePersonHouseholds))+'</td></tr>').join('');
+ document.querySelectorAll('#areaRanking [data-area-code]').forEach(row=>row.addEventListener('click',event=>{if(event.target.closest('.area-select-button'))event.stopPropagation();const area=areaByCode.get(row.dataset.areaCode);if(area)selectArea(area)}));
 }
 function renderQuality(){
  const totalRows=DATA.metadata.resourceRows;
