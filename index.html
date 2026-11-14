@@ -229,6 +229,7 @@ const serviceSearchButton=document.getElementById('serviceSearchButton');
 const semanticSearchToggle=document.getElementById('semanticSearchToggle');
 const semanticSearchStatus=document.getElementById('semanticSearchStatus');
 let activeServiceSearchScope=null,activeServiceSearchQuery='',serviceSearchRequestId=0,semanticReviewState=null;
+let semanticAttemptSequence=0,activeSemanticAttemptId=0;
 let semanticPipelinePromise=null,semanticPassageVectorsPromise=null;
 const semanticModelId='Xenova/multilingual-e5-small';
 const semanticModelRevision='761b726dd34fb83930e26aab4e9ac3899aa1fa78';
@@ -286,43 +287,71 @@ function updateServiceSearchButtonLabel(){
   ?semanticReviewState.selected.size?'선택 유형으로 검색':'유형 없이 검색'
   :'의미 유형 후보 보기';
 }
-async function getSemanticExtractor(){
+async function getSemanticExtractor(attemptId){
  if(!semanticPipelinePromise){
-  semanticSearchStatus.textContent='의미검색 모델과 실행 모듈을 준비하고 있습니다.';
-  semanticPipelinePromise=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2')
+  if(activeSemanticAttemptId===attemptId)semanticSearchStatus.textContent='의미검색 모델과 실행 모듈을 준비하고 있습니다.';
+  let pendingPipeline;
+  pendingPipeline=import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2')
    .then(({pipeline})=>pipeline('feature-extraction',semanticModelId,{
     revision:semanticModelRevision,
     dtype:'int8',
     device:'wasm',
     progress_callback:info=>{
+     if(activeSemanticAttemptId!==attemptId)return;
      if(info.status==='progress_total'&&Number.isFinite(info.progress))semanticSearchStatus.textContent='의미검색 모델 내려받기·준비 중 '+Math.round(info.progress)+'% · 첫 사용은 약 140MB입니다.';
      else if(info.status==='ready')semanticSearchStatus.textContent='의미검색 모델이 준비되었습니다. 브라우저에서 입력 문장을 처리합니다.';
     },
    }))
-   .catch(error=>{semanticPipelinePromise=null;throw error});
+   .catch(error=>{if(semanticPipelinePromise===pendingPipeline)semanticPipelinePromise=null;throw error});
+  semanticPipelinePromise=pendingPipeline;
  }
  return semanticPipelinePromise;
 }
 async function getSemanticPassageVectors(extractor){
  if(!semanticPassageVectorsPromise){
-  semanticPassageVectorsPromise=extractor(semanticIntentPassages.map(item=>item.text),{pooling:'mean',normalize:true})
+  let pendingVectors;
+  pendingVectors=extractor(semanticIntentPassages.map(item=>item.text),{pooling:'mean',normalize:true})
    .then(output=>output.tolist())
-   .catch(error=>{semanticPassageVectorsPromise=null;throw error});
+   .catch(error=>{if(semanticPassageVectorsPromise===pendingVectors)semanticPassageVectorsPromise=null;throw error});
+  semanticPassageVectorsPromise=pendingVectors;
  }
  return semanticPassageVectorsPromise;
 }
-async function classifyServiceNeedSemantically(query){
- const extractor=await getSemanticExtractor();
- semanticSearchStatus.textContent='문장과 사회서비스 유형 설명의 의미를 비교하고 있습니다.';
+function ensureSemanticAttemptActive(attemptId){
+ if(activeSemanticAttemptId===attemptId)return;
+ const error=new Error('의미검색 요청 조건이 바뀌었습니다.');
+ error.name='AbortError';
+ throw error;
+}
+async function classifyServiceNeedSemantically(query,attemptId){
+ const extractor=await getSemanticExtractor(attemptId);
+ ensureSemanticAttemptActive(attemptId);
+ if(activeSemanticAttemptId===attemptId)semanticSearchStatus.textContent='문장과 사회서비스 유형 설명의 의미를 비교하고 있습니다.';
  const categoryVectors=await getSemanticPassageVectors(extractor);
+ ensureSemanticAttemptActive(attemptId);
  const queryOutput=await extractor('query: '+query,{pooling:'mean',normalize:true});
  const queryVector=queryOutput.tolist()[0];
  const ranked=categoryVectors.map((vector,index)=>({
   name:semanticIntentPassages[index].name,
   score:queryVector.reduce((sum,value,dimension)=>sum+value*vector[dimension],0),
  })).sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ko')).slice(0,3);
- semanticSearchStatus.textContent='의미 유형을 찾았습니다. 유사도는 확률이나 지원 자격을 뜻하지 않습니다.';
+ if(activeSemanticAttemptId===attemptId)semanticSearchStatus.textContent='의미 유형을 찾았습니다. 유사도는 확률이나 지원 자격을 뜻하지 않습니다.';
  return ranked;
+}
+function withSemanticSearchTimeout(promise,attemptId){
+ let timeoutId;
+ const timeout=new Promise((_,reject)=>{
+  timeoutId=setTimeout(()=>{
+   if(activeSemanticAttemptId===attemptId){
+    semanticPipelinePromise=null;
+    semanticPassageVectorsPromise=null;
+   }
+   const error=new Error('의미검색이 제한 시간 안에 준비되지 않았습니다.');
+   error.name='SemanticSearchTimeoutError';
+   reject(error);
+  },90000);
+ });
+ return Promise.race([promise,timeout]).finally(()=>clearTimeout(timeoutId));
 }
 function renderSearchInterpretation(categories,semanticScores=[],{selectable=false,semanticSelectedCategories=[],ruleCategories=[]}={}){
  clearSearchInterpretation();
@@ -376,13 +405,14 @@ function clearOutdatedServiceSearch({preserveResults=false}={}){
  const queryChanged=activeServiceSearchQuery!==document.getElementById('serviceQuery').value.trim();
  if(!scopeChanged&&!queryChanged)return;
  if(preserveResults&&!queryChanged){
+  serviceSearchRequestId++;activeSemanticAttemptId=0;serviceSearchButton.disabled=false;
   activeServiceSearchScope=serviceSearchScopeKey();
   semanticReviewState=null;
   serviceSearchStatus.textContent='제공지역 경계를 지도에 표시했습니다. 검색 결과는 처음 선택한 검색 범위 기준입니다.';
   updateServiceSearchButtonLabel();
   return;
  }
- activeServiceSearchScope=null;semanticReviewState=null;serviceSearchRequestId++;serviceSearchButton.disabled=false;serviceSearchResults.replaceChildren();
+ activeServiceSearchScope=null;semanticReviewState=null;serviceSearchRequestId++;activeSemanticAttemptId=0;serviceSearchButton.disabled=false;serviceSearchResults.replaceChildren();
  clearSearchInterpretation();
  serviceSearchStatus.textContent=scopeChanged?'지역·서비스 유형·검색 방식이 바뀌었습니다. 새 조건으로 다시 검색해 주세요.':'검색어가 바뀌었습니다. 새 검색을 진행해 주세요.';
  updateServiceSearchButtonLabel();
@@ -639,11 +669,13 @@ function renderServiceResults(results){
 serviceSearchForm.addEventListener('submit',async event=>{
  event.preventDefault();
  const requestId=++serviceSearchRequestId;
+ const semanticAttemptId=++semanticAttemptSequence;
+ activeSemanticAttemptId=semanticSearchToggle.checked?semanticAttemptId:0;
  const province=provinceFilter.value;
  const district=selectedDistrict();
  const dong=selectedArea();
  const query=document.getElementById('serviceQuery').value.trim();
- if(query.length<2){activeServiceSearchScope=null;serviceSearchButton.disabled=false;serviceSearchResults.replaceChildren();clearSearchInterpretation();serviceSearchStatus.textContent='필요한 도움을 두 글자 이상 입력해 주세요.';return}
+ if(query.length<2){activeSemanticAttemptId=0;activeServiceSearchScope=null;serviceSearchButton.disabled=false;serviceSearchResults.replaceChildren();clearSearchInterpretation();serviceSearchStatus.textContent='필요한 도움을 두 글자 이상 입력해 주세요.';return}
  activeServiceSearchScope=serviceSearchScopeKey();activeServiceSearchQuery=query;
  serviceSearchButton.disabled=true;
  serviceSearchStatus.textContent=semanticSearchToggle.checked?'입력 문장과 서비스 유형 설명을 비교하고 있습니다.':'공개 서비스 목록에서 후보를 찾고 있습니다.';
@@ -655,7 +687,7 @@ serviceSearchForm.addEventListener('submit',async event=>{
    const reviewed=semanticReviewState&&semanticReviewState.query===query&&semanticReviewState.scope===activeServiceSearchScope;
    if(!reviewed){
     try{
-     semanticScores=await classifyServiceNeedSemantically(query);
+     semanticScores=await withSemanticSearchTimeout(classifyServiceNeedSemantically(query,semanticAttemptId),semanticAttemptId);
      if(requestId!==serviceSearchRequestId)return;
      semanticReviewState={query,scope:activeServiceSearchScope,scores:semanticScores,selected:new Set()};
      renderSearchInterpretation([],semanticScores,{selectable:true,semanticSelectedCategories:[]});
@@ -663,8 +695,13 @@ serviceSearchForm.addEventListener('submit',async event=>{
      return;
     }catch(error){
      if(requestId!==serviceSearchRequestId)return;
-     semanticFallbackMessage=' AI 모델을 불러오지 못해 규칙 기반 검색으로 전환했습니다.';
-     semanticSearchStatus.textContent='의미검색을 사용할 수 없어 규칙 기반 검색으로 전환했습니다.';
+     activeSemanticAttemptId=0;
+     semanticFallbackMessage=error.name==='SemanticSearchTimeoutError'
+      ?' 의미검색 준비가 지연되어 규칙 기반 검색으로 전환했습니다.'
+      :' AI 모델을 불러오지 못해 규칙 기반 검색으로 전환했습니다.';
+     semanticSearchStatus.textContent=error.name==='SemanticSearchTimeoutError'
+      ?'의미검색 준비 시간이 초과되어 규칙 기반 검색으로 전환했습니다.'
+      :'의미검색을 사용할 수 없어 규칙 기반 검색으로 전환했습니다.';
     }
    }else{
     semanticScores=semanticReviewState.scores;
@@ -697,8 +734,9 @@ serviceSearchForm.addEventListener('submit',async event=>{
  }
 });
 semanticSearchToggle.addEventListener('change',()=>{
+ if(!semanticSearchToggle.checked)activeSemanticAttemptId=0;
  semanticSearchStatus.textContent=semanticSearchToggle.checked
-  ?'첫 사용은 모델 약 140MB 다운로드가 필요합니다. 입력 문장은 브라우저에서 분류합니다.'
+  ?'첫 사용은 모델 약 140MB 다운로드가 필요합니다. 90초 내 준비되지 않으면 규칙 기반 검색으로 전환합니다.'
   :'선택하지 않으면 현재 규칙 기반 검색을 사용합니다.';
  clearOutdatedServiceSearch();
  updateServiceSearchButtonLabel();
