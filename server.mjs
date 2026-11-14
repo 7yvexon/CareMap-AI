@@ -148,10 +148,17 @@ function searchServiceResources({ query, province, district, category, limit, in
     });
   }
 
-  return results
+  const matchedCount = results.length;
+  const returnedResults = results
     .sort((a, b) => b.score - a.score || a.program.localeCompare(b.program, 'ko'))
     .slice(0, limit)
     .map(({ score, ...resource }) => resource);
+
+  return {
+    candidateCount: candidates.length,
+    matchedCount,
+    results: returnedResults,
+  };
 }
 
 const server = createServer(async (req, res) => {
@@ -309,7 +316,9 @@ const server = createServer(async (req, res) => {
     const rawLimit = url.searchParams.get('limit');
     const parsedLimit = rawLimit === null || normalize(rawLimit) === '' ? 8 : Number(rawLimit);
     const limit = Number.isInteger(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 12)) : 8;
-    const results = searchServiceResources({ query, province, district, category, limit, intentCategories });
+    const searchStartedAt = process.hrtime.bigint();
+    const search = searchServiceResources({ query, province, district, category, limit, intentCategories });
+    const processingMs = Number(process.hrtime.bigint() - searchStartedAt) / 1_000_000;
     const inferredCategories = [...new Set([...inferCategories(query), ...intentCategories])];
 
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
@@ -321,7 +330,13 @@ const server = createServer(async (req, res) => {
         : '규칙 기반 키워드·서비스 유형 후보 검색',
       semanticIntentCategories: intentCategories,
       inferredCategories,
-      results,
+      diagnostics: {
+        candidateCount: search.candidateCount,
+        matchedCount: search.matchedCount,
+        returnedCount: search.results.length,
+        processingMs: Number(processingMs.toFixed(2)),
+      },
+      results: search.results,
     }));
     return;
   }
