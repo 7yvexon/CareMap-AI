@@ -3,14 +3,14 @@ import { constants } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { TextDecoder } from 'node:util';
 import { gunzipSync } from 'node:zlib';
+import { openServiceCatalog } from './scripts/lib/service-catalog.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const resourcePath = join(root, 'data/source/nhis_integrated_care_resources_20260630.csv');
+const catalogPath = join(root, 'data/cache/service_resources.sqlite');
 const serviceResourcesAsOf = '2026-06-30';
 const adminBoundariesAsOf = '2026-10-01';
-const koreanDecoder = new TextDecoder('euc-kr');
 const files = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
   ['/index.html', ['index.html', 'text/html; charset=utf-8']],
@@ -37,68 +37,8 @@ function sendJsonError(res, message) {
   res.end(JSON.stringify({ error: message }));
 }
 
-function parseCsv(text, label) {
-  const rows = [];
-  let row = [];
-  let field = '';
-  let quoted = false;
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (quoted) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"';
-        i++;
-      } else if (char === '"') {
-        quoted = false;
-      } else {
-        field += char;
-      }
-    } else if (char === '"') {
-      quoted = true;
-    } else if (char === ',') {
-      row.push(field);
-      field = '';
-    } else if (char === '\n') {
-      row.push(field.replace(/\r$/, ''));
-      if (row.some(value => value !== '')) rows.push(row);
-      row = [];
-      field = '';
-    } else {
-      field += char;
-    }
-  }
-
-  if (field.length || row.length) {
-    row.push(field.replace(/\r$/, ''));
-    if (row.some(value => value !== '')) rows.push(row);
-  }
-
-  const [rawHeaders, ...values] = rows;
-  if (!rawHeaders?.length) throw new Error(`${label} is empty`);
-  const headers = rawHeaders.map((header, index) => index === 0 ? header.replace(/^\uFEFF/, '') : header);
-  return values.map((columns, rowIndex) => {
-    if (columns.length !== headers.length) {
-      throw new Error(`${label} row ${rowIndex + 2} has ${columns.length} columns; expected ${headers.length}`);
-    }
-    return Object.fromEntries(headers.map((header, index) => [header, columns[index]]));
-  });
-}
-
-let sourceRows = parseCsv(koreanDecoder.decode(await readFile(resourcePath)), resourcePath);
-const resourceRowCount = sourceRows.length;
-const serviceResources = sourceRows.map((row, index) => ({
-  id: index + 1,
-  sido: normalize(row['시도']),
-  sigungu: normalize(row['시군구']),
-  provider: normalize(row['서비스 제공기관명']),
-  phone: normalize(row['기관연락처']),
-  address: normalize(row['기관주소']),
-  major: normalize(row['대분류']) || '분류 미기재',
-  minor: normalize(row['중분류']) || '분류 미기재',
-  program: normalize(row['프로그램명칭']),
-}));
-sourceRows = null;
+const serviceCatalog = await openServiceCatalog({ sourcePath: resourcePath, databasePath: catalogPath });
+const resourceRowCount = serviceCatalog.rowCount;
 
 const boundaryPath = join(root, 'data/source/admin_dong_boundaries_20261001.geojson.gz');
 const boundaryCollection = JSON.parse(gunzipSync(await readFile(boundaryPath)).toString('utf8'));
@@ -166,11 +106,8 @@ function searchServiceResources({ query, province, district, category, limit }) 
   const results = [];
   const seen = new Set();
 
-  for (const resource of serviceResources) {
-    if (province && resource.sido !== province) continue;
-    if (district && resource.sigungu !== district) continue;
-    if (category && resource.major !== category) continue;
-
+  const candidates = serviceCatalog.searchCandidates({ province, district, category, inferredCategories, terms });
+  for (const resource of candidates) {
     const categoryMatches = inferredCategories.filter(name => resource.minor === name || resource.major === name);
     const textFields = {
       program: resource.program,
@@ -232,7 +169,7 @@ const server = createServer(async (req, res) => {
         return false;
       }
     }))).every(Boolean);
-    const serviceSearchReady = resourceRowCount > 0 && serviceResources.length === resourceRowCount;
+    const serviceSearchReady = resourceRowCount > 0 && serviceCatalog.filterIndexCount === 3;
     const areaBoundariesReady = boundaryFeatureCount > 0 && boundariesByDongCode.size > 0;
     const ready = pageAssetsReady && serviceSearchReady && areaBoundariesReady;
     const payload = {
@@ -350,5 +287,5 @@ const server = createServer(async (req, res) => {
 
 const port = Number(process.env.PORT || 8765);
 server.listen(port, '127.0.0.1', () => {
-  console.log(`CareMap AI: http://127.0.0.1:${port} (${serviceResources.length} resources, ${boundariesByDongCode.size} dong boundaries indexed)`);
+  console.log(`CareMap AI: http://127.0.0.1:${port} (${resourceRowCount} resources, ${boundariesByDongCode.size} dong boundaries indexed)`);
 });

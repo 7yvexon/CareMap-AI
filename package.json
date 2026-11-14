@@ -8,6 +8,10 @@
   },
   "scripts": {
     "prestart": "node scripts/build-data.mjs",
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "db:rebuild": "node scripts/rebuild-service-catalog.mjs"
+  },
+  "dependencies": {
+    "sql.js": "1.16.0"
   }
 }
