@@ -673,7 +673,7 @@ for (const district of districts) {
 const dataDirectory = join(root, 'data');
 await mkdir(dataDirectory, { recursive: true });
 await writeFile(join(dataDirectory, 'national_data.js'), `window.CAREMAP_DATA = ${JSON.stringify(data)};\n`, 'utf8');
-await writeFile(join(dataDirectory, 'national_district_summary.csv'), `${summaryLines.join('\r\n')}\r\n`, 'utf8');
+await writeFile(join(dataDirectory, 'national_district_summary.csv'), `${summaryLines.join('\n')}\n`, 'utf8');
 
 console.log(
   `Built national data for ${areas.length} administrative dongs, ${districts.length} districts, ` +
