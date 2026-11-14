@@ -11,7 +11,7 @@ npm install
 npm start
 ```
 
-브라우저에서 http://127.0.0.1:8765/ 를 엽니다. 시작 전에 `scripts/build-data.mjs`가 원본 CSV·JSON·경계 파일을 읽어 화면용 자료와 시군구 요약 CSV를 다시 생성합니다. 서버는 서비스 원본 CSV의 SHA-256을 SQLite 카탈로그와 비교해 변경됐을 때만 데이터베이스를 재생성하고, 검색과 선택 지역별 경계 API를 제공합니다. 강제 재생성은 `npm run db:rebuild`로 실행합니다. 로컬 SQLite 카탈로그는 `data/cache/service_resources.sqlite`에 저장되며 Git에는 포함되지 않습니다. 배경지도에는 인터넷 연결이 필요합니다.
+브라우저에서 http://127.0.0.1:8765/ 를 엽니다. 시작 전에 `scripts/build-data.mjs`가 원본 CSV·JSON·경계 파일을 읽어 화면용 자료와 시군구 요약 CSV를 다시 생성합니다. 서버는 서비스 원본 CSV의 SHA-256을 SQLite 카탈로그와 비교해 변경됐을 때만 데이터베이스를 재생성하고, 검색·선택 지역별 대분류 집계·행정경계 API를 제공합니다. 강제 재생성은 `npm run db:rebuild`로 실행합니다. 로컬 SQLite 카탈로그는 `data/cache/service_resources.sqlite`에 저장되며 Git에는 포함되지 않습니다. 배경지도에는 인터넷 연결이 필요합니다.
 
 ## 현재 범위
 

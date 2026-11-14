@@ -33,6 +33,8 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 .search-example{border:1px solid #dce9e5;border-radius:999px;background:#f7fbf9;color:#337268;padding:5px 9px;font:inherit;font-size:10px;cursor:pointer}
 .search-example:hover{background:#e9f6f1}
 .service-result-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px}.service-result-locate{border:1px solid #cfe3dc;border-radius:7px;background:#f7fbf9;color:#286b62;padding:6px 9px;font:inherit;font-size:10px;font-weight:700;cursor:pointer}.service-result-locate:hover{background:#e8f5ef;border-color:#a9d3c5}.service-result-locate:focus-visible{outline:2px solid #168b83;outline-offset:2px}
+.child-map-control{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:-3px 0 11px}.child-map-control[hidden]{display:none}.child-map-button{border:1px solid #dce5e3;border-radius:8px;background:#fff;color:#60747a;padding:7px 10px;font:inherit;font-size:10px;font-weight:700;cursor:pointer}.child-map-button[aria-pressed="true"]{border-color:#b9ddd3;background:#e7f4ef;color:#176c67}.child-map-button:focus-visible{outline:2px solid #168b83;outline-offset:2px}
+.service-summary-status{font-size:10px;color:#71818a;line-height:1.5;margin:-2px 0 10px}
 .source-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
 @media(max-width:1050px){.kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:1050px){.source-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -111,6 +113,7 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
   <section class="layout">
     <article class="panel map-panel">
       <div class="panel-head"><div><div id="mapPanelTitle" class="panel-title">행정구역 지도</div><div id="mapPanelSub" class="panel-sub">시도 → 시군구 → 읍면동을 선택하면 해당 범위로 확대하고 읍면동 경계를 표시합니다. 지도 경계도 눌러 지역을 고를 수 있습니다.</div></div></div>
+      <div id="childMapControl" class="child-map-control" role="group" aria-label="아동 지도 지표" hidden><button type="button" class="child-map-button" data-child-map-view="population" aria-pressed="true">0~17세 인구 비율</button><button type="button" class="child-map-button" data-child-map-view="centers" aria-pressed="false">지역아동센터 기록 관측</button></div>
       <div class="map-shell"><div id="map" class="map" role="region" aria-label="전국 행정구역 지도"></div><div id="mapStatus" class="map-status" role="status" aria-live="polite" hidden><span id="mapStatusText">배경지도를 불러오는 중입니다.</span><button id="mapRetry" class="map-retry" type="button" hidden>다시 시도</button></div><div class="map-legend"><div id="legendElderly"><div class="legend-title">65세 이상 인구 비율</div><div class="legend-row"><i class="swatch" style="background:#e9f4ef"></i>14% 미만</div><div class="legend-row"><i class="swatch" style="background:#b7dfcc"></i>14~18%</div><div class="legend-row"><i class="swatch" style="background:#83c3ac"></i>18~22%</div><div class="legend-row"><i class="swatch" style="background:#4ca58f"></i>22~26%</div><div class="legend-row"><i class="swatch" style="background:#168b83"></i>26% 이상</div><div class="legend-row"><i class="swatch" style="background:#e1a842"></i>선택 지역</div></div><div id="legendChildren" hidden><div class="legend-title">0~17세 인구 비율</div><div class="legend-row"><i class="swatch" style="background:#f0f3fb"></i>8% 미만</div><div class="legend-row"><i class="swatch" style="background:#d4def4"></i>8~10%</div><div class="legend-row"><i class="swatch" style="background:#aebfe9"></i>10~12%</div><div class="legend-row"><i class="swatch" style="background:#8299d7"></i>12~15%</div><div class="legend-row"><i class="swatch" style="background:#526caf"></i>15% 이상</div><div class="legend-row"><i class="swatch" style="background:#e1a842"></i>선택 지역</div></div></div></div>
       <div id="regionMapStatus" class="region-map-status" role="status" aria-live="polite"></div>
       <div id="mapCaption" class="map-caption">시도 배경 경계는 geoBoundaries/Natural Earth 2021, 세부 경계는 통계청 SGIS 기반 2026.10.01 자료입니다. 인구자료 3,620개 행정동 중 3,558개 코드가 경계와 일치합니다. 출장소 등 경계가 없는 62개 단위는 상위 시군구 범위를 표시합니다.</div>
@@ -134,6 +137,7 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
       </article>
       <article id="serviceCategoryPanel" class="panel" data-elderly-only>
         <div class="panel-head"><div><div class="panel-title">서비스 자원 유형</div><div id="categoryScope" class="panel-sub">전국 등록 항목의 대분류</div></div></div>
+        <div id="serviceSummaryStatus" class="service-summary-status" role="status" aria-live="polite">지역을 선택하면 SQLite에서 대분류별 프로그램·자원 행을 집계합니다.</div>
         <div id="categoryBreakdown" class="category-list"></div>
       </article>
     </aside>
@@ -192,6 +196,8 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 <script>
 const DATA=window.CAREMAP_DATA;
 let activeMode='elderly';
+let activeChildMapMetric='population';
+let serviceSummaryRequest=0;
 const fmt=n=>Number(n||0).toLocaleString('ko-KR');
 const pct=(a,b)=>b?(100*a/b).toFixed(1)+'%':'-';
 const esc=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -355,6 +361,36 @@ function renderKpis(){
   ].map(([label,value])=>'<div class="child-metric"><span>'+label+'</span><strong>'+value+'</strong></div>').join('');
  }
 }
+function categoryRowsHtml(entries){
+ const usable=entries.filter(([name,count])=>name&&Number.isFinite(Number(count))&&Number(count)>=0).sort((a,b)=>Number(b[1])-Number(a[1]));
+ const max=Math.max(1,...usable.map(([,count])=>Number(count)));
+ return usable.length?usable.map(([name,count])=>'<div class="category-row"><div class="category-name" title="'+esc(name)+'">'+esc(name)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(2,100*Number(count)/max)+'%"></div></div><div class="category-count">'+fmt(count)+'행</div></div>').join(''):'<div class="panel-sub">선택 지역에 등록된 서비스 자원 행이 없습니다.</div>';
+}
+function renderStaticCategoryBreakdown(resourceScope){
+ const entries=Object.entries(resourceScope.resourcesByMajor||{});
+ document.getElementById('categoryBreakdown').innerHTML=categoryRowsHtml(entries);
+}
+async function loadServiceSummary({resourceScope,province,district,request}){
+ const status=document.getElementById('serviceSummaryStatus');
+ status.textContent='선택 지역의 서비스 유형을 SQLite에서 집계하고 있습니다.';
+ const params=new URLSearchParams();
+ if(province)params.set('province',province);
+ if(district)params.set('district',district);
+ try{
+  const response=await fetch('/api/service-summary?'+params.toString(),{headers:{Accept:'application/json'},cache:'no-store'});
+  const payload=await response.json();
+  if(!response.ok)throw new Error(payload.error||'서비스 유형 집계 API가 응답하지 않습니다.');
+  if(!payload||!Number.isInteger(payload.totalRecordCount)||payload.totalRecordCount<0||!Array.isArray(payload.categories))throw new Error('서비스 유형 집계 응답 형식이 올바르지 않습니다.');
+  if(request!==serviceSummaryRequest||activeMode!=='elderly')return;
+  document.getElementById('categoryBreakdown').innerHTML=categoryRowsHtml(payload.categories.map(item=>[item.major,item.recordCount]));
+  const asOf=String(payload.sourceAsOf||DATA.metadata.resourcesAsOf).replaceAll('-','.');
+  status.textContent='SQLite 지역 집계 완료 · 기준 '+asOf+' · '+fmt(payload.totalRecordCount)+'개 프로그램·자원 행 · 기관 수가 아님 · 대분류 필터와 별개인 전체 유형';
+ }catch(error){
+  if(request!==serviceSummaryRequest||activeMode!=='elderly')return;
+  renderStaticCategoryBreakdown(resourceScope);
+  status.textContent='SQLite 집계를 사용할 수 없어 미리 생성된 '+String(DATA.metadata.resourcesAsOf).replaceAll('-','.')+' 지역 요약을 표시합니다.';
+ }
+}
 function renderSelection(){
  const scope=currentScope();
  const area=selectedArea(),district=selectedDistrict(),isDistrict=Boolean(district),isProvince=Boolean(selectedProvince());
@@ -380,10 +416,11 @@ function renderSelection(){
  document.getElementById('selectedStats').innerHTML=stats.map(x=>'<div class="stat"><label>'+esc(x[0])+'</label><strong>'+esc(x[1])+'</strong><div class="stat-note">'+esc(x[2])+'</div></div>').join('');
  document.getElementById('childCenterScopeStatus').textContent=childCenterStatus(centerScope);
  document.getElementById('childCenterScopeNote').textContent=childCenterScopeNote(centerScope,Boolean(area));
- document.getElementById('categoryScope').textContent=(area?(district?.displayName||district?.sido)+' 시군구':scopeName())+' · 서비스 대분류별 목록 행';
- const entries=Object.entries(resourceScope.resourcesByMajor||{}).sort((a,b)=>b[1]-a[1]);
- const max=Math.max(1,...entries.map(([,count])=>count));
- document.getElementById('categoryBreakdown').innerHTML=entries.length?entries.map(([name,count])=>'<div class="category-row"><div class="category-name" title="'+esc(name)+'">'+esc(name)+'</div><div class="bar-track"><div class="bar-fill" style="width:'+Math.max(2,100*count/max)+'%"></div></div><div class="category-count">'+fmt(count)+'행</div></div>').join(''):'<div class="panel-sub">선택 지역에 등록된 항목이 없습니다.</div>';
+  document.getElementById('categoryScope').textContent=(area?(district?.displayName||district?.sido)+' 시군구':scopeName())+' · 대분류별 프로그램·자원 레코드';
+  const summaryRequest=++serviceSummaryRequest;
+  renderStaticCategoryBreakdown(resourceScope);
+  if(activeMode==='elderly')loadServiceSummary({resourceScope,province:district?.sido||selectedProvince()?.sido||'',district:district?.sigungu||'',request:summaryRequest});
+  else document.getElementById('serviceSummaryStatus').textContent='어르신 돌봄 모드에서 서비스 DB 집계를 표시합니다.';
 
  const facilityScope=district?.facilityPopulation||selectedProvince()?.facilityPopulation||DATA.nationalFacilityPopulation;
  const facilityLevelLabels={national:'전국 지역별 합산',province:'시도 내 지역별 합산',city:'상위 시 전체 집계',district:'시군구 지역명 일치'};
@@ -504,11 +541,47 @@ document.querySelectorAll('[data-search-example]').forEach(button=>button.addEve
  document.getElementById('serviceQuery').value=button.dataset.searchExample;
  serviceSearchForm.requestSubmit();
 }));
+function childCoverageForProvince(sido){
+ const districts=DATA.districts.filter(district=>district.sido===sido);
+ return {
+  total:districts.length,
+  observed:districts.filter(district=>Number(district.childCenterRecordRows||0)>0).length,
+  reviewOnly:districts.filter(district=>!Number(district.childCenterRecordRows||0)&&Number(district.childCenterAddressCoordinateReviewRows||0)>0).length,
+ };
+}
+function childDistrictMapColor(district){
+ if(!district)return '#d8e1de';
+ if(Number(district.childCenterRecordRows||0)>0)return '#388a75';
+ if(Number(district.childCenterAddressCoordinateReviewRows||0)>0)return '#e2a842';
+ return '#d8e1de';
+}
+function childProvinceMapColor(sido){
+ const coverage=childCoverageForProvince(sido);
+ if(!coverage.total)return '#d8e1de';
+ if(!coverage.observed)return coverage.reviewOnly?'#e2a842':'#d8e1de';
+ return coverage.observed===coverage.total?'#286f60':'#84c3ab';
+}
+function renderChildMapLegend(){
+ const legend=document.getElementById('legendChildren');
+ legend.innerHTML=activeChildMapMetric==='centers'
+  ?'<div class="legend-title">센터 기록 관측 · 시군구 기준</div><div class="legend-row"><i class="swatch" style="background:#d8e1de"></i>이 수집본에서 미관측</div><div class="legend-row"><i class="swatch" style="background:#388a75"></i>기록 행 확인</div><div class="legend-row"><i class="swatch" style="background:#e2a842"></i>검토 후보만 있음</div><div class="legend-row"><i class="swatch" style="background:#84c3ab"></i>시도 내 일부 시군구에서 기록 확인</div><div class="legend-row"><i class="swatch" style="background:#286f60"></i>시도 내 모든 시군구에서 기록 확인</div><div class="legend-row"><i class="swatch" style="background:#dba43c"></i>선택 행정동</div>'
+  :'<div class="legend-title">0~17세 인구 비율</div><div class="legend-row"><i class="swatch" style="background:#f0f3fb"></i>8% 미만</div><div class="legend-row"><i class="swatch" style="background:#d4def4"></i>8~10%</div><div class="legend-row"><i class="swatch" style="background:#aebfe9"></i>10~12%</div><div class="legend-row"><i class="swatch" style="background:#8299d7"></i>12~15%</div><div class="legend-row"><i class="swatch" style="background:#526caf"></i>15% 이상</div><div class="legend-row"><i class="swatch" style="background:#e1a842"></i>선택 지역</div>';
+}
 function rateColor(rate){if(rate>=.26)return '#168b83';if(rate>=.22)return '#4ca58f';if(rate>=.18)return '#83c3ac';if(rate>=.14)return '#b7dfcc';return '#e9f4ef'}
 function childrenRateColor(rate){if(rate>=.15)return '#526caf';if(rate>=.12)return '#8299d7';if(rate>=.10)return '#aebfe9';if(rate>=.08)return '#d4def4';return '#f0f3fb'}
 function mapRate(scope){return activeMode==='children'?Number(scope?.childrenRate||0):Number(scope?.elderlyRate||0)}
-function mapColor(scope){return activeMode==='children'?childrenRateColor(mapRate(scope)):rateColor(mapRate(scope))}
+function mapColor(scope){
+ if(activeMode==='children'&&activeChildMapMetric==='centers'){
+  if(scope?.sigunguCode)return childDistrictMapColor(districtByCode.get(String(scope.sigunguCode))||scope);
+  if(scope?.sido)return childProvinceMapColor(scope.sido);
+ }
+ return activeMode==='children'?childrenRateColor(mapRate(scope)):rateColor(mapRate(scope));
+}
 function popupHtml(province){
+ if(activeMode==='children'&&activeChildMapMetric==='centers'){
+  const coverage=childCoverageForProvince(province.sido);
+  return '<b>'+esc(province.sido)+'</b><br>지역아동센터 기록 관측 행정단위 '+fmt(coverage.observed)+'/'+fmt(coverage.total)+'개'+(coverage.reviewOnly?' · 검토 후보만 있는 행정단위 '+fmt(coverage.reviewOnly)+'개':'')+'<br><span style="color:#71818a">시도 지도는 지역 단위 기록 관측 범위를 요약합니다. 미관측은 센터 부재를 뜻하지 않습니다.</span>';
+ }
  if(activeMode==='children')return '<b>'+esc(province.sido)+'</b><br>0~17세 주민등록인구 '+fmt(province.children0To17)+'명 ('+pct(province.children0To17,province.population)+')<br>지역아동센터 표준데이터: '+esc(childCenterStatus(province))+'<br><span style="color:#71818a">인구는 수요·지원 자격이 아니며, 센터 기록 미관측은 센터 부재를 뜻하지 않습니다.</span>';
  return '<b>'+esc(province.sido)+'</b><br>65세 이상 '+fmt(province.elderly)+'명 ('+pct(province.elderly,province.population)+')<br>고령 1인 세대 '+fmt(province.elderlySinglePersonHouseholds)+'세대<br>서비스 자원 목록 '+fmt(resourceCount(province))+'행<br><span style="color:#71818a">목록 행은 고유 기관 수나 정원이 아닙니다.</span>'
 }
@@ -517,12 +590,14 @@ function areaPopupHtml(feature){
  if(!area)return '<b>'+esc(feature.properties.dong||'행정동 경계')+'</b><br><span style="color:#71818a">인구 자료와 코드가 일치하지 않아 지표를 연결하지 못했습니다.</span>';
  if(activeMode==='children'){
   const district=districtByCode.get(String(area.sigunguCode))||{};
+  if(activeChildMapMetric==='centers')return '<b>'+esc(area.sido+' '+area.sigungu+' '+area.dong)+'</b><br>상위 시군구 지역아동센터 표준데이터: '+esc(childCenterStatus(district))+'<br><span style="color:#71818a">색은 시군구 단위 기록 상태를 읍면동 경계에 표시합니다. 미관측은 센터 부재를 뜻하지 않습니다.</span>';
   return '<b>'+esc(area.sido+' '+area.sigungu+' '+area.dong)+'</b><br>0~17세 주민등록인구 '+fmt(area.children0To17)+'명 ('+pct(area.children0To17,area.population)+')<br>지역아동센터 표준데이터: '+esc(childCenterStatus(district))+'<br><span style="color:#71818a">센터 기록은 상위 시군구 기준입니다. 인구는 돌봄 수요가 아니며, 미관측은 센터 부재를 뜻하지 않습니다.</span>';
  }
  return '<b>'+esc(area.sido+' '+area.sigungu+' '+area.dong)+'</b><br>65세 이상 '+fmt(area.elderly)+'명 ('+pct(area.elderly,area.population)+')<br>고령 1인 세대 '+fmt(area.elderlySinglePersonHouseholds)+'세대<br><span style="color:#71818a">서비스 목록은 시군구 단위로 집계되어 있습니다.</span>';
 }
 function applyModeUI(){
  const childMode=activeMode==='children';
+ const centerMapMode=childMode&&activeChildMapMetric==='centers';
  document.body.classList.toggle('child-mode',childMode);
  modeButtons.forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.viewMode===activeMode)));
  document.getElementById('headlineTitle').textContent=childMode?'아동·청소년 인구와 지역아동센터 자료 보기':'지역과 필요를 연결하는 돌봄 서비스 찾기';
@@ -530,7 +605,7 @@ function applyModeUI(){
   ?'0~17세 주민등록인구 분포와 지역아동센터 표준데이터의 기록 상태를 출처별로 살펴봅니다. 인구는 돌봄 수요나 지원 자격이 아닙니다.'
   :'지역과 필요한 도움을 선택해 공개된 통합돌봄 프로그램 후보를 근거와 함께 찾고, 전국 현황을 살펴봅니다.';
  document.getElementById('headlineAsOf').textContent=childMode?'인구 2026.10.31 · 센터 수집 2026.11.14':'인구 2026.10.31 · 서비스 목록 2026.06.30';
- document.getElementById('modeStatus').textContent=childMode?'아동 인구 참고 지도 · 센터 기록은 수집본 기준':'서비스 후보와 65세 이상 인구 현황';
+ document.getElementById('modeStatus').textContent=childMode?(centerMapMode?'시군구별 센터 기록 관측 · 미관측은 센터 부재가 아님':'아동 인구 참고 지도 · 센터 기록은 수집본 기준'):'서비스 후보와 65세 이상 인구 현황';
  document.getElementById('serviceSearchSection').hidden=childMode;
  document.getElementById('childDataOverview').hidden=!childMode;
  document.getElementById('elderlyMethod').hidden=childMode;
@@ -539,17 +614,22 @@ function applyModeUI(){
  document.getElementById('childCenterPanel').hidden=!childMode;
  document.getElementById('serviceCategoryPanel').hidden=childMode;
  document.getElementById('resourceQualityPanel').hidden=childMode;
+ document.getElementById('childMapControl').hidden=!childMode;
+ document.querySelectorAll('[data-child-map-view]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.childMapView===activeChildMapMetric)));
+ renderChildMapLegend();
  document.getElementById('filterTitle').textContent=childMode?'지역 선택':'지역·서비스 선택';
  document.getElementById('regionFilters').setAttribute('aria-label',childMode?'지역 선택 필터':'지역과 서비스 유형 필터');
- document.getElementById('map').setAttribute('aria-label',childMode?'0~17세 주민등록인구 비율 지도':'전국 행정구역 지도');
+ document.getElementById('map').setAttribute('aria-label',centerMapMode?'시군구 기준 지역아동센터 기록 관측 지도':childMode?'0~17세 주민등록인구 비율 지도':'전국 행정구역 지도');
  document.getElementById('legendElderly').hidden=childMode;
  document.getElementById('legendChildren').hidden=!childMode;
- document.getElementById('mapPanelTitle').textContent=childMode?'0~17세 주민등록인구 비율 지도':'행정구역 지도';
+ document.getElementById('mapPanelTitle').textContent=centerMapMode?'지역아동센터 표준데이터 기록 관측 지도':childMode?'0~17세 주민등록인구 비율 지도':'행정구역 지도';
  document.getElementById('mapPanelSub').textContent=childMode
-  ?'지도 색상은 선택 지역 인구 중 0~17세 비율입니다. 지역을 눌러 주민등록 인구와 상위 시군구 센터 기록 상태를 확인하세요.'
+  ?centerMapMode?'초록은 기록 행 확인, 회색은 이 수집본에서 미관측, 주황은 검토 후보만 있는 시군구입니다. 시도 색은 일부 또는 모든 시군구의 상태를 요약합니다. 읍면동 경계에는 상위 시군구 상태를 반복해 표시하며, 시설 위치를 뜻하지 않습니다.'
+  :'지도 색상은 선택 지역 인구 중 0~17세 비율입니다. 지역을 눌러 주민등록 인구와 상위 시군구 센터 기록 상태를 확인하세요.'
   :'시도 → 시군구 → 읍면동을 선택하면 해당 범위로 확대하고 읍면동 경계를 표시합니다. 지도 경계도 눌러 지역을 고를 수 있습니다.';
  document.getElementById('mapCaption').textContent=childMode
-  ?'아동 인구는 행정안전부 2026.10.31 주민등록 인구에서 연령 0~17세를 합산했습니다. 지도 색상은 인구 비율이며, 지역아동센터 기록 수나 돌봄 부족을 뜻하지 않습니다. 읍면동 경계는 통계청 SGIS 기반 2026.10.01 자료입니다.'
+  ?centerMapMode?'지역아동센터 표준데이터 2026.11.14 수집본의 시군구별 기록 상태입니다. 자료 미관측은 센터 부재를 뜻하지 않고, 검토 후보는 일반 기록 수와 분리했습니다. 읍면동 경계는 통계청 SGIS 기반 2026.10.01 자료입니다.'
+  :'아동 인구는 행정안전부 2026.10.31 주민등록 인구에서 연령 0~17세를 합산했습니다. 지도 색상은 인구 비율이며, 지역아동센터 기록 수나 돌봄 부족을 뜻하지 않습니다. 읍면동 경계는 통계청 SGIS 기반 2026.10.01 자료입니다.'
   :'시도 배경 경계는 geoBoundaries/Natural Earth 2021, 세부 경계는 통계청 SGIS 기반 2026.10.01 자료입니다. 인구자료 3,620개 행정동 중 3,558개 코드가 경계와 일치합니다. 출장소 등 경계가 없는 62개 단위는 상위 시군구 범위를 표시합니다.';
  document.title=childMode?'CareMap AI | 아동 인구와 센터 자료':'CareMap AI | 전국 통합돌봄 자원 분포';
 }
@@ -644,6 +724,13 @@ function renderAll({preserveSearchResults=false}={}){
 modeButtons.forEach(button=>button.addEventListener('click',()=>{
  if(activeMode===button.dataset.viewMode)return;
  activeMode=button.dataset.viewMode;
+ applyModeUI();
+ if(map)map.closePopup();
+ renderAll();
+}));
+document.querySelectorAll('[data-child-map-view]').forEach(button=>button.addEventListener('click',()=>{
+ if(activeChildMapMetric===button.dataset.childMapView)return;
+ activeChildMapMetric=button.dataset.childMapView;
  applyModeUI();
  if(map)map.closePopup();
  renderAll();

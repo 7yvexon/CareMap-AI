@@ -262,6 +262,41 @@ function createCatalogHandle(database, metadata, rebuilt) {
     sourceAsOf: metadata.source_as_of,
     rebuilt,
     filterIndexCount: REQUIRED_INDEXES.length,
+    summarizeServiceRecords({ province, district }) {
+      const conditions = [];
+      const parameters = [];
+      if (province) {
+        conditions.push('sido = ?');
+        parameters.push(province);
+      }
+      if (district) {
+        conditions.push('sigungu = ?');
+        parameters.push(district);
+      }
+
+      // These are source program/resource rows, not distinct facilities, live availability, or capacity.
+      const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+      const totalRows = readStatementRows(database.prepare(`
+        SELECT COUNT(*) AS total_record_count
+        FROM service_resources
+        ${where}
+      `), parameters);
+      const rows = readStatementRows(database.prepare(`
+        SELECT major, COUNT(*) AS record_count
+        FROM service_resources
+        ${where}
+        GROUP BY major
+        ORDER BY major COLLATE NOCASE, major
+      `), parameters);
+      const categories = rows.map(({ major, record_count }) => ({
+        major,
+        recordCount: Number(record_count),
+      }));
+      return {
+        totalRecordCount: Number(totalRows[0]?.total_record_count ?? 0),
+        categories,
+      };
+    },
     searchCandidates({ province, district, category, inferredCategories, terms }) {
       const conditions = [];
       const parameters = [];

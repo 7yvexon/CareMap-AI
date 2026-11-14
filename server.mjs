@@ -228,6 +228,38 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // GET /api/service-summary counts source program/resource records, not facilities, current availability, or capacity.
+  if (pathname === '/api/service-summary') {
+    const url = new URL(req.url, 'http://127.0.0.1');
+    const province = normalize(url.searchParams.get('province'));
+    const district = normalize(url.searchParams.get('district'));
+    if (province.length > 60 || district.length > 60) {
+      sendJsonError(res, '지역 이름은 각각 60자 이하로 입력해 주세요.');
+      return;
+    }
+    if (district && !province) {
+      sendJsonError(res, '시군구 범위를 지정하려면 시도를 함께 입력해 주세요.');
+      return;
+    }
+
+    const summary = serviceCatalog.summarizeServiceRecords({ province, district });
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(JSON.stringify({
+      sourceAsOf: serviceCatalog.sourceAsOf,
+      scope: {
+        province: province || null,
+        district: district || null,
+      },
+      totalRecordCount: summary.totalRecordCount,
+      categories: summary.categories,
+    }));
+    return;
+  }
+
   if (pathname === '/api/resources') {
     const url = new URL(req.url, 'http://127.0.0.1');
     const query = normalize(url.searchParams.get('query'));
