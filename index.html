@@ -352,12 +352,30 @@ function withSemanticSearchTimeout(promise,attemptId){
     semanticPipelinePromise=null;
     semanticPassageVectorsPromise=null;
    }
-   const error=new Error('의미검색이 제한 시간 안에 준비되지 않았습니다.');
+   const error=new Error('의미 유형 분석이 제한 시간 안에 끝나지 않았습니다.');
    error.name='SemanticSearchTimeoutError';
    reject(error);
   },90000);
  });
  return Promise.race([promise,timeout]).finally(()=>clearTimeout(timeoutId));
+}
+async function fetchServiceResources(url){
+ const controller=new AbortController();
+ const timeoutId=setTimeout(()=>controller.abort(),15000);
+ try{
+  const response=await fetch(url,{headers:{Accept:'application/json'},signal:controller.signal});
+  const payload=await response.json();
+  return {response,payload};
+ }catch(error){
+  if(controller.signal.aborted){
+   const timeoutError=new Error('서비스 검색 API 응답이 제한 시간 안에 도착하지 않았습니다.');
+   timeoutError.name='ServiceSearchTimeoutError';
+   throw timeoutError;
+  }
+  throw error;
+ }finally{
+  clearTimeout(timeoutId);
+ }
 }
 function renderSearchInterpretation(categories,semanticScores=[],{selectable=false,semanticSelectedCategories=[],ruleCategories=[]}={}){
  clearSearchInterpretation();
@@ -703,10 +721,10 @@ serviceSearchForm.addEventListener('submit',async event=>{
      if(requestId!==serviceSearchRequestId)return;
      activeSemanticAttemptId=0;
      semanticFallbackMessage=error.name==='SemanticSearchTimeoutError'
-      ?' 의미검색 준비가 지연되어 규칙 기반 검색으로 전환했습니다.'
+      ?' 의미 유형 분석이 지연되어 규칙 기반 검색으로 전환했습니다.'
       :' AI 모델을 불러오지 못해 규칙 기반 검색으로 전환했습니다.';
      semanticSearchStatus.textContent=error.name==='SemanticSearchTimeoutError'
-      ?'의미검색 준비 시간이 초과되어 규칙 기반 검색으로 전환했습니다.'
+      ?'의미 유형 분석이 제한 시간 안에 끝나지 않아 규칙 기반 검색으로 전환했습니다.'
       :'의미검색을 사용할 수 없어 규칙 기반 검색으로 전환했습니다.';
     }
    }else{
@@ -719,8 +737,7 @@ serviceSearchForm.addEventListener('submit',async event=>{
   if(district?.sigungu)params.set('district',district.sigungu);
   if(categoryFilter.value)params.set('category',categoryFilter.value);
   for(const category of intentCategories)params.append('intent',category);
-  const response=await fetch('/api/resources?'+params.toString(),{headers:{Accept:'application/json'}});
-  const payload=await response.json();
+  const {response,payload}=await fetchServiceResources('/api/resources?'+params.toString());
   if(!response.ok)throw new Error(payload.error||'서비스 목록을 검색하지 못했습니다.');
   if(requestId!==serviceSearchRequestId)return;
   const semanticCategories=Array.isArray(payload.semanticIntentCategories)?payload.semanticIntentCategories:[];
@@ -734,7 +751,9 @@ serviceSearchForm.addEventListener('submit',async event=>{
    ?region+'에서 후보 '+fmt(payload.results.length)+'건을 찾았습니다 · '+payload.searchMethod+' · 기준 '+payload.asOf+dongNote+semanticFallbackMessage
    :region+'의 현재 수집 목록에서 일치 후보를 찾지 못했습니다. '+emptySearchHint+dongNote+semanticFallbackMessage;
  }catch(error){
-  if(requestId===serviceSearchRequestId)serviceSearchStatus.textContent=error.message||'검색 중 오류가 발생했습니다.';
+  if(requestId===serviceSearchRequestId)serviceSearchStatus.textContent=error.name==='ServiceSearchTimeoutError'
+   ?'서비스 검색이 15초 안에 응답하지 않았습니다. 시스템 상태와 연결을 확인한 뒤 다시 시도해 주세요.'
+   :error.message||'검색 중 오류가 발생했습니다.';
  }finally{
   if(requestId===serviceSearchRequestId){serviceSearchButton.disabled=false;updateServiceSearchButtonLabel()}
  }
@@ -742,7 +761,7 @@ serviceSearchForm.addEventListener('submit',async event=>{
 semanticSearchToggle.addEventListener('change',()=>{
  if(!semanticSearchToggle.checked)activeSemanticAttemptId=0;
  semanticSearchStatus.textContent=semanticSearchToggle.checked
-  ?'첫 사용은 모델 약 140MB 다운로드가 필요합니다. 90초 내 준비되지 않으면 규칙 기반 검색으로 전환합니다.'
+  ?'첫 사용은 모델 약 140MB 다운로드가 필요합니다. 의미 유형 분석이 90초 안에 끝나지 않으면 규칙 기반 검색으로 전환합니다.'
   :'선택하지 않으면 현재 규칙 기반 검색을 사용합니다.';
  clearOutdatedServiceSearch();
  updateServiceSearchButtonLabel();
