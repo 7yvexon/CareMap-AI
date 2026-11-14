@@ -65,6 +65,7 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 .search-diagnostics{margin-top:7px;color:#6d7f84;font-size:10px;line-height:1.6}
 .search-diagnostics summary{width:max-content;cursor:pointer;color:#52726b;font-weight:700}
 .search-diagnostics p{margin:6px 0 0;overflow-wrap:anywhere}
+.region-boundary-retry{margin:3px 0 0 2px}.region-boundary-retry[aria-disabled="true"]{opacity:.65;cursor:wait}
 .semantic-search-control{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px;font-size:10px;color:#52666c}
 .semantic-search-control label{display:inline-flex;align-items:center;gap:6px;font-weight:700;cursor:pointer}
 .semantic-search-control input{accent-color:#168b83}
@@ -135,7 +136,8 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
       <div class="panel-head"><div><div id="mapPanelTitle" class="panel-title">행정구역 지도</div><div id="mapPanelSub" class="panel-sub">시도 → 시군구 → 읍면동을 선택하면 해당 범위로 확대하고 읍면동 경계를 표시합니다. 지도 경계도 눌러 지역을 고를 수 있습니다.</div></div></div>
       <div id="childMapControl" class="child-map-control" role="group" aria-label="아동 지도 지표" hidden><button type="button" class="child-map-button" data-child-map-view="population" aria-pressed="true">0~17세 인구 비율</button><button type="button" class="child-map-button" data-child-map-view="centers" aria-pressed="false">지역아동센터 기록 관측</button></div>
       <div class="map-shell"><div id="map" class="map" role="region" aria-label="전국 행정구역 지도"></div><div id="mapStatus" class="map-status" role="status" aria-live="polite" hidden><span id="mapStatusText">배경지도를 불러오는 중입니다.</span><button id="mapRetry" class="map-retry" type="button" hidden>다시 시도</button></div><div class="map-legend"><div id="legendElderly"><div class="legend-title">65세 이상 인구 비율</div><div class="legend-row"><i class="swatch" style="background:#e9f4ef"></i>14% 미만</div><div class="legend-row"><i class="swatch" style="background:#b7dfcc"></i>14~18%</div><div class="legend-row"><i class="swatch" style="background:#83c3ac"></i>18~22%</div><div class="legend-row"><i class="swatch" style="background:#4ca58f"></i>22~26%</div><div class="legend-row"><i class="swatch" style="background:#168b83"></i>26% 이상</div><div class="legend-row"><i class="swatch" style="background:#e1a842"></i>선택 지역</div></div><div id="legendChildren" hidden><div class="legend-title">0~17세 인구 비율</div><div class="legend-row"><i class="swatch" style="background:#f0f3fb"></i>8% 미만</div><div class="legend-row"><i class="swatch" style="background:#d4def4"></i>8~10%</div><div class="legend-row"><i class="swatch" style="background:#aebfe9"></i>10~12%</div><div class="legend-row"><i class="swatch" style="background:#8299d7"></i>12~15%</div><div class="legend-row"><i class="swatch" style="background:#526caf"></i>15% 이상</div><div class="legend-row"><i class="swatch" style="background:#e1a842"></i>선택 지역</div></div></div></div>
-      <div id="regionMapStatus" class="region-map-status" role="status" aria-live="polite"></div>
+      <div id="regionMapStatus" class="region-map-status" role="status" aria-live="polite" tabindex="-1"></div>
+      <button id="regionMapRetry" class="map-retry region-boundary-retry" type="button" hidden>행정경계 다시 시도</button>
       <div id="mapCaption" class="map-caption">시도 배경 경계는 geoBoundaries/Natural Earth 2021, 세부 경계는 통계청 SGIS 기반 2026.10.01 자료입니다. 인구자료 3,620개 행정동 중 3,558개 코드가 경계와 일치합니다. 출장소 등 경계가 없는 62개 단위는 상위 시군구 범위를 표시합니다.</div>
     </article>
     <aside class="side">
@@ -230,6 +232,7 @@ const mapStatus=document.getElementById('mapStatus');
 const mapStatusText=document.getElementById('mapStatusText');
 const mapRetry=document.getElementById('mapRetry');
 const regionMapStatus=document.getElementById('regionMapStatus');
+const regionMapRetry=document.getElementById('regionMapRetry');
 const serviceSearchForm=document.getElementById('serviceSearchForm');
 const serviceSearchStatus=document.getElementById('serviceSearchStatus');
 const serviceSearchDiagnostics=document.getElementById('serviceSearchDiagnostics');
@@ -239,6 +242,36 @@ const serviceSearchInterpretation=document.getElementById('serviceSearchInterpre
 const serviceSearchButton=document.getElementById('serviceSearchButton');
 const semanticSearchToggle=document.getElementById('semanticSearchToggle');
 const semanticSearchStatus=document.getElementById('semanticSearchStatus');
+const isDataRecord=value=>value!==null&&typeof value==='object'&&!Array.isArray(value);
+const isNonemptyDataArray=value=>Array.isArray(value)&&value.length>0;
+const hasNumericFields=(value,keys)=>isDataRecord(value)&&keys.every(key=>Number.isFinite(value[key]));
+const hasStringFields=(value,keys)=>isDataRecord(value)&&keys.every(key=>typeof value[key]==='string'&&value[key].length>0);
+const hasRequiredNationalArrays=['provinces','districts','areas','boundaries','majorCategories','minorCategories','elderlyFacilityTypes'].every(key=>isNonemptyDataArray(DATA?.[key]));
+const requiredMetadataNumbers=['provinceCount','districtCount','populationRows','resourceRows','children0To17Population','elderlyPopulation','elderlySinglePersonHouseholds','resourceRowsWithMissingAddress','resourceRowsWithMissingPhone','resourceProvinceOnlyRows','resourceEncodingReplacementChars','minorCategoryCount','facilityPopulationTypeCount','childCenterDistrictCount','childCenterRows','childCenterObservedDistrictCount','childCenterAddressCoordinateReviewRows','childCenterCoordinateAssignedRows'];
+const nationalDataReady=isDataRecord(DATA)
+ &&hasRequiredNationalArrays
+ &&DATA.majorCategories.every(value=>typeof value==='string')
+ &&DATA.minorCategories.every(value=>typeof value==='string')
+ &&DATA.elderlyFacilityTypes.every(value=>typeof value==='string')
+ &&DATA.provinces.every(value=>isDataRecord(value)&&hasStringFields(value,['sido'])&&hasNumericFields(value,['districtCount','dongCount','population','children0To17','childrenRate','elderly','elderlyRate','elderlySinglePersonHouseholds','singlePersonHouseholds','childCenterRecordRows','childCenterCoordinateAssignedRows','childCenterAddressCoordinateReviewRows','resourceRows','missingAddressRows','missingPhoneRows'])&&isDataRecord(value.resourcesByMajor)&&isDataRecord(value.facilityPopulation))
+ &&DATA.districts.every(value=>isDataRecord(value)&&hasStringFields(value,['sido','districtId','displayName'])&&typeof value.sigungu==='string'&&hasNumericFields(value,['dongCount','population','children0To17','childrenRate','elderly','elderlyRate','elderlySinglePersonHouseholds','singlePersonHouseholds','childCenterRecordRows','childCenterCoordinateAssignedRows','childCenterAddressCoordinateReviewRows','resourceRows','resourceCategoryCount','missingAddressRows','missingPhoneRows'])&&isDataRecord(value.resourcesByMajor)&&isDataRecord(value.resourcesByMinor)&&isDataRecord(value.facilityPopulation))
+ &&DATA.areas.every(value=>isDataRecord(value)&&hasStringFields(value,['sido','code','dong','asOf'])&&typeof value.sigungu==='string'&&hasNumericFields(value,['male','female','population','children0To17','childrenRate','elderly','elderlyRate','elderlySinglePersonHouseholds','singlePersonHouseholds']))
+ &&DATA.boundaries.every(value=>isDataRecord(value)&&isDataRecord(value.geometry)&&isDataRecord(value.properties)&&typeof value.properties.sido==='string')
+ &&hasNumericFields(DATA.metadata,requiredMetadataNumbers)&&hasStringFields(DATA.metadata,['resourcesAsOf','childCenterDataAsOfMin','childCenterDataAsOfMax'])
+ &&isDataRecord(DATA.nationalFacilityPopulation)&&hasStringFields(DATA.nationalFacilityPopulation,['asOf','sourceLevel'])&&isNonemptyDataArray(DATA.nationalFacilityPopulation.sourceAreaNames)&&isDataRecord(DATA.nationalFacilityPopulation.byType)&&Object.keys(DATA.nationalFacilityPopulation.byType).length>0
+ &&Object.values(DATA.nationalFacilityPopulation.byType).every(value=>hasNumericFields(value,['capacity','residents']))
+ &&DATA.metadata.provinceCount===DATA.provinces.length&&DATA.metadata.districtCount===DATA.districts.length&&DATA.metadata.populationRows===DATA.areas.length;
+if(!nationalDataReady){
+ systemStatus.dataset.state='error';
+ systemStatus.textContent='전국 자료 로딩 실패';
+ systemStatus.title='전국 자료 스크립트가 없거나 필요한 자료 구조가 올바르지 않습니다. 로컬 서버의 /data/national_data.js 응답을 확인해 주세요.';
+ mapStatusText.textContent='전국 지도 자료를 불러오지 못했습니다';
+ mapRetry.hidden=true;mapStatus.hidden=false;
+ regionMapStatus.textContent='지도 자료가 준비되지 않아 지역 선택·통계를 사용할 수 없습니다. 서버 상태를 확인하고 페이지를 새로고침해 주세요.';
+ serviceSearchStatus.textContent='전국 자료를 불러오지 못해 지역 선택과 서비스 검색을 사용할 수 없습니다. 서버 상태를 확인하고 페이지를 새로고침해 주세요.';
+ document.querySelectorAll('#regionFilters select,#serviceSearchForm input,#serviceSearchForm select,#serviceSearchForm button,#semanticSearchToggle,#resetFilters,[data-search-example],[data-view-mode],[data-child-map-view]').forEach(control=>{control.disabled=true});
+ throw new Error('Required national map data is unavailable');
+}
 document.querySelectorAll('.panel-title').forEach(title=>{title.setAttribute('role','heading');title.setAttribute('aria-level','2')});
 let activeServiceSearchScope=null,activeServiceSearchQuery='',serviceSearchRequestId=0,semanticReviewState=null;
 let semanticAttemptSequence=0,activeSemanticAttemptId=0;
@@ -912,28 +945,38 @@ try{
  showMapStatus('지도를 초기화하지 못했습니다 · 페이지를 새로고침해 주세요');
  regionMapStatus.textContent='지역 선택과 통계는 계속 사용할 수 있습니다.';
 }
-async function drawSelectedAreaMap(){
+async function drawSelectedAreaMap({retrying=false}={}){
  const request=++boundaryRequest;
  const province=selectedProvince(),district=selectedDistrict(),area=selectedArea();
+ if(retrying){regionMapRetry.hidden=false;regionMapRetry.setAttribute('aria-disabled','true')}
+ else hideRegionMapRetry();
  if(detailedAreaLayer){map.removeLayer(detailedAreaLayer);detailedAreaLayer=null}
- if(!map||!provinceLayer)return;
- if(!province){regionMapStatus.textContent='시도를 선택하면 시군구·읍면동 경계가 지도에 표시됩니다.';map.fitBounds(provinceLayer.getBounds().pad(.06));return}
+ if(!map||!provinceLayer){hideRegionMapRetry();return}
+ if(!province){regionMapStatus.textContent='시도를 선택하면 시군구·읍면동 경계가 지도에 표시됩니다.';map.fitBounds(provinceLayer.getBounds().pad(.06));hideRegionMapRetry();return}
  const provinceFeatureLayer=provinceLayer.getLayers().find(layer=>layer.feature?.properties.sido===province.sido);
  if(provinceFeatureLayer)map.fitBounds(provinceFeatureLayer.getBounds().pad(.06));
  const params=new URLSearchParams({province:province.sido});
  if(district?.sigungu)params.set('district',district.sigungu);
+ const cacheKey=province.sido+'\u001f'+(district?.sigungu||'');
  regionMapStatus.textContent='선택한 지역의 행정경계를 불러오고 있습니다.';
  try{
-  const cacheKey=province.sido+'\u001f'+(district?.sigungu||'');
   let payload=boundaryCache.get(cacheKey);
   if(!payload){
-   const response=await fetch('/api/area-boundaries?'+params.toString(),{headers:{Accept:'application/geo+json'}});
-   payload=await response.json();
+   const controller=new AbortController();
+   const timeoutId=setTimeout(()=>controller.abort(),15000);
+   let response;
+   try{
+    response=await fetch('/api/area-boundaries?'+params.toString(),{headers:{Accept:'application/geo+json'},signal:controller.signal});
+    payload=await response.json();
+   }catch(error){
+    if(controller.signal.aborted)throw new Error('행정경계 요청이 15초 안에 응답하지 않았습니다.');
+    throw error;
+   }finally{clearTimeout(timeoutId)}
    if(!response.ok)throw new Error(payload.error||'행정경계를 불러오지 못했습니다.');
-   boundaryCache.set(cacheKey,payload);
   }
   if(request!==boundaryRequest)return;
-  if(!payload.features.length){regionMapStatus.textContent='경계 자료에 해당 지역이 없습니다. 시도 경계를 표시합니다.';return}
+  if(!payload||!Array.isArray(payload.features))throw new Error('행정경계 응답 형식이 올바르지 않습니다.');
+  if(!payload.features.length){boundaryCache.set(cacheKey,payload);regionMapStatus.textContent='경계 자료에 해당 지역이 없습니다. 시도 경계를 표시합니다.';hideRegionMapRetry();return}
   detailedAreaLayer=L.geoJSON(payload,{
    style:feature=>{const data=areaByCode.get(feature.properties.code),selected=area?.code===feature.properties.code;return {color:selected?'#774b08':'#ffffff',weight:selected?3:1,fillColor:selected?'#e1a842':data?mapColor(data):'#cbd8d4',fillOpacity:selected?.96:.68}},
    onEachFeature:(feature,layer)=>{
@@ -952,10 +995,22 @@ async function drawSelectedAreaMap(){
   regionMapStatus.textContent=area&&!selectedBoundaryFound
    ?region+'의 행정경계 폴리곤이 자료에 없어 상위 시군구 경계를 표시합니다. 경계 기준 2026.10.01.'
    :region+' 범위의 읍면동 경계 '+fmt(payload.features.length)+'개를 표시합니다 · 경계 기준 2026.10.01.';
+  boundaryCache.set(cacheKey,payload);
+  hideRegionMapRetry();
  }catch(error){
-  if(request===boundaryRequest)regionMapStatus.textContent=(error.message||'행정경계를 불러오지 못했습니다.')+' 시도 경계를 표시합니다.';
+  if(request===boundaryRequest){boundaryCache.delete(cacheKey);regionMapStatus.textContent=(error.message||'행정경계를 불러오지 못했습니다.')+' 시도 경계를 표시합니다.';regionMapRetry.hidden=false;regionMapRetry.removeAttribute('aria-disabled');}
  }
 }
+function hideRegionMapRetry(){
+ if(document.activeElement===regionMapRetry)regionMapStatus.focus({preventScroll:true});
+ regionMapRetry.hidden=true;
+ regionMapRetry.removeAttribute('aria-disabled');
+}
+regionMapRetry.addEventListener('click',()=>{
+ if(regionMapRetry.getAttribute('aria-disabled')==='true')return;
+ regionMapStatus.textContent='선택한 지역의 행정경계를 다시 불러오고 있습니다.';
+ drawSelectedAreaMap({retrying:true});
+});
 function selectArea(area){
  provinceFilter.value=area.sido;
  updateDistrictOptions();
