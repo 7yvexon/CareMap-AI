@@ -99,6 +99,9 @@ const districtsWithoutBoundaries = nationalDistricts
 const unexpectedIndexedDistrictCodes = [...indexedDistrictCodes]
   .filter(code => !expectedDistrictCodes.has(code))
   .sort();
+const populationDongCodesWithoutBoundaryCount = [...populationDongCodes]
+  .filter(code => !boundariesByDongCode.has(code))
+  .length;
 
 const intentRules = [
   { terms: ['식사', '반찬', '밥', '영양', '도시락', '배달', '급식'], categories: ['식사지원'] },
@@ -225,6 +228,9 @@ const server = createServer(async (req, res) => {
       ready,
       serviceResourceRowCount: resourceRowCount,
       adminBoundaryFeatureCount: boundaryFeatureCount,
+      expectedPopulationDongCodeCount: populationDongCodes.size,
+      indexedPopulationDongBoundaryCodeCount: boundariesByDongCode.size,
+      populationDongCodesWithoutBoundaryCount,
       expectedProvinceCount: expectedProvinceNames.size,
       indexedProvinceCount: boundariesByProvince.size,
       provincesWithoutBoundaries,
