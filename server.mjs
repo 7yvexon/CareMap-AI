@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TextDecoder } from 'node:util';
@@ -7,6 +7,8 @@ import { gunzipSync } from 'node:zlib';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const resourcePath = join(root, 'data/source/nhis_integrated_care_resources_20260630.csv');
+const serviceResourcesAsOf = '2026-06-30';
+const adminBoundariesAsOf = '2026-10-01';
 const koreanDecoder = new TextDecoder('euc-kr');
 const files = new Map([
   ['/', ['index.html', 'text/html; charset=utf-8']],
@@ -90,6 +92,7 @@ sourceRows = null;
 
 const boundaryPath = join(root, 'data/source/admin_dong_boundaries_20261001.geojson.gz');
 const boundaryCollection = JSON.parse(gunzipSync(await readFile(boundaryPath)).toString('utf8'));
+const boundaryFeatureCount = boundaryCollection.features?.length ?? 0;
 const nationalDataSource = await readFile(join(root, 'data/national_data.js'), 'utf8');
 const nationalDataJson = nationalDataSource.slice(nationalDataSource.indexOf('{'), nationalDataSource.lastIndexOf('}') + 1);
 const populationDongCodes = new Set(JSON.parse(nationalDataJson).areas.map(area => area.code));
@@ -196,12 +199,50 @@ function searchServiceResources({ query, province, district, category, limit }) 
 
 const server = createServer(async (req, res) => {
   if (req.method !== 'GET') {
-    res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.writeHead(405, { 'Allow': 'GET', 'Content-Type': 'text/plain; charset=utf-8' });
     res.end('Method not allowed');
     return;
   }
 
   const pathname = new URL(req.url, 'http://127.0.0.1').pathname;
+  if (pathname === '/api/health') {
+    const requiredPageAssets = ['/', '/leaflet.js', '/leaflet.css', '/data/national_data.js'];
+    const pageAssetsReady = (await Promise.all(requiredPageAssets.map(async route => {
+      const entry = files.get(route);
+      if (!entry) return false;
+      try {
+        await access(join(root, entry[0]));
+        return true;
+      } catch {
+        return false;
+      }
+    }))).every(Boolean);
+    const serviceSearchReady = resourceRowCount > 0 && serviceResources.length === resourceRowCount;
+    const areaBoundariesReady = boundaryFeatureCount > 0 && boundariesByDongCode.size > 0;
+    const ready = pageAssetsReady && serviceSearchReady && areaBoundariesReady;
+    const payload = {
+      ready,
+      serviceResourceRowCount: resourceRowCount,
+      adminBoundaryFeatureCount: boundaryFeatureCount,
+      referenceDates: {
+        serviceResources: serviceResourcesAsOf,
+        adminBoundaries: adminBoundariesAsOf,
+      },
+      checks: {
+        pageAssets: pageAssetsReady,
+        serviceSearch: serviceSearchReady,
+        areaBoundaries: areaBoundariesReady,
+      },
+    };
+    res.writeHead(ready ? 200 : 503, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(JSON.stringify(payload));
+    return;
+  }
+
   if (pathname === '/api/area-boundaries') {
     const url = new URL(req.url, 'http://127.0.0.1');
     const province = normalize(url.searchParams.get('province')).slice(0, 60);
@@ -222,7 +263,7 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({
       type: 'FeatureCollection',
       features,
-      boundaryAsOf: '2026-10-01',
+      boundaryAsOf: adminBoundariesAsOf,
       selectedBoundaryFound,
     }));
     return;
@@ -240,14 +281,15 @@ const server = createServer(async (req, res) => {
     const province = normalize(url.searchParams.get('province')).slice(0, 60);
     const district = normalize(url.searchParams.get('district')).slice(0, 60);
     const category = normalize(url.searchParams.get('category')).slice(0, 60);
-    const parsedLimit = Number(url.searchParams.get('limit'));
+    const rawLimit = url.searchParams.get('limit');
+    const parsedLimit = rawLimit === null || normalize(rawLimit) === '' ? 8 : Number(rawLimit);
     const limit = Number.isInteger(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 12)) : 8;
     const results = searchServiceResources({ query, province, district, category, limit });
     const inferredCategories = inferCategories(query);
 
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify({
-      asOf: '2026-06-30',
+      asOf: serviceResourcesAsOf,
       sourceRows: resourceRowCount,
       searchMethod: '규칙 기반 키워드·서비스 유형 후보 검색',
       inferredCategories,

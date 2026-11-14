@@ -41,12 +41,21 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 .mode-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:13px;padding:9px 12px;margin:14px 0 10px}.mode-label{font-size:11px;font-weight:800;color:#60747a;margin:0 4px 0 2px}.mode-button{border:1px solid transparent;background:#f2f6f4;color:#536a70;border-radius:9px;padding:8px 12px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}.mode-button:hover{background:#e8f1ee}.mode-button[aria-pressed="true"]{background:#e0f3ee;border-color:#b9ddd3;color:#176c67;box-shadow:inset 0 0 0 1px #d3ebe4}.mode-status{margin-left:auto;color:#819094;font-size:10px}.child-overview{margin:12px 0 15px;padding:16px 18px;border-color:#dfe8f1}.child-overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}.child-metric{border:1px solid #e8edf2;background:#f8fafc;border-radius:10px;padding:10px 12px}.child-metric span{display:block;font-size:10px;color:#788791}.child-metric strong{display:block;margin-top:3px;color:#334d5e;font-size:17px}.child-caveat,.child-warning{font-size:10px;line-height:1.65;color:#667780}.child-caveat{margin:8px 0 0;padding:10px 12px;border-radius:9px;background:#f2f6fa}.child-warning{padding:9px 10px;border-radius:8px;background:#fff8ea;color:#78643a;margin:9px 0 0}.coverage-status{font-size:12px;font-weight:800;color:#344f5d;line-height:1.7}.coverage-sub{font-size:10px;color:#788791;line-height:1.65;margin-top:5px}.child-mode [data-elderly-only]{display:none!important}.child-mode .map-legend{min-width:160px}.child-mode .kpi:nth-child(3):after{background:#e7edfb}.child-mode .kpi:nth-child(4):after{background:#f0e8fa}
 @media(max-width:650px){.mode-toolbar{align-items:stretch}.mode-label{width:100%}.mode-button{flex:1}.mode-status{width:100%;margin-left:2px}.child-overview-grid{grid-template-columns:1fr 1fr}}
 </style>
+<style>
+.system-status{display:inline-flex;align-items:center;gap:6px;border:1px solid #dce7e4;border-radius:999px;background:#f8faf9;color:#6c7c80;padding:5px 9px;font-size:10px;font-weight:700;white-space:nowrap}
+.system-status::before{content:"";width:7px;height:7px;border-radius:50%;background:#9aa8a8;flex:none}
+.system-status[data-state="ready"]{border-color:#cce5d9;background:#f1faf5;color:#327463}
+.system-status[data-state="ready"]::before{background:#2e9a70}
+.system-status[data-state="error"]{border-color:#efd4cc;background:#fff7f4;color:#9a5547}
+.system-status[data-state="error"]::before{background:#c75b47}
+@media(max-width:650px){.topmeta{gap:6px}.topmeta>span:last-child{display:none}.system-status{font-size:9px;padding:5px 7px}}
+</style>
 <link rel="stylesheet" href="/leaflet.css">
 </head>
 <body>
 <header>
   <div class="brand"><div class="brand-mark">⌖</div><div>CareMap AI<small>COMMUNITY CARE PLANNING</small></div></div>
-  <div class="topmeta"><span class="pill">전국 공개데이터 분석</span><span>지역사회 통합돌봄</span></div>
+  <div class="topmeta"><span class="pill">전국 공개데이터 분석</span><span id="systemStatus" class="system-status" data-state="checking" role="status" aria-live="polite" title="서비스 목록과 지도 경계의 서버 준비 상태">자료 상태 확인 중</span><span>지역사회 통합돌봄</span></div>
 </header>
 <main>
   <div class="eyebrow">전국 지역사회 통합돌봄 · 지역별 탐색</div>
@@ -183,6 +192,7 @@ const provinceFilter=document.getElementById('provinceFilter');
 const districtFilter=document.getElementById('districtFilter');
 const dongFilter=document.getElementById('dongFilter');
 const categoryFilter=document.getElementById('categoryFilter');
+const systemStatus=document.getElementById('systemStatus');
 const mapStatus=document.getElementById('mapStatus');
 const mapStatusText=document.getElementById('mapStatusText');
 const mapRetry=document.getElementById('mapRetry');
@@ -223,6 +233,20 @@ function childCenterScopeNote(scope,isArea=false){
 }
 function showMapStatus(message,canRetry=false){mapStatusText.textContent=message;mapRetry.hidden=!canRetry;mapStatus.hidden=false}
 function clearMapStatus(){mapStatus.hidden=true;mapRetry.hidden=true;mapRetry.disabled=false}
+async function checkSystemStatus(){
+ try{
+  const response=await fetch('/api/health',{headers:{Accept:'application/json'},cache:'no-store'});
+  const payload=await response.json();
+  if(!response.ok||payload.ready!==true)throw new Error('서비스 자료 또는 행정경계 상태를 확인해 주세요.');
+  systemStatus.dataset.state='ready';
+  systemStatus.textContent='자료 준비됨';
+  systemStatus.title='검색 자료 '+fmt(payload.serviceResourceRowCount)+'행 · 행정경계 '+fmt(payload.adminBoundaryFeatureCount)+'개 · 기준 '+(payload.referenceDates?.serviceResources||'-')+' / '+(payload.referenceDates?.adminBoundaries||'-');
+ }catch{
+  systemStatus.dataset.state='error';
+  systemStatus.textContent='자료 연결 확인 필요';
+  systemStatus.title='검색·지도 자료 서버 상태를 확인하지 못했습니다. 페이지를 새로고침하거나 서버를 다시 시작해 주세요.';
+ }
+}
 
 function populateFilters(){
  DATA.provinces.forEach(p=>{const option=document.createElement('option');option.value=p.sido;option.textContent=p.sido;provinceFilter.appendChild(option)});
@@ -458,7 +482,7 @@ function applyModeUI(){
   :'시도 배경 경계는 geoBoundaries/Natural Earth 2021, 세부 경계는 통계청 SGIS 기반 2026.10.01 자료입니다. 인구자료 3,620개 행정동 중 3,558개 코드가 경계와 일치합니다. 출장소 등 경계가 없는 62개 단위는 상위 시군구 범위를 표시합니다.';
  document.title=childMode?'CareMap AI | 아동 인구와 센터 자료':'CareMap AI | 전국 통합돌봄 자원 분포';
 }
-populateFilters();applyModeUI();renderKpis();
+populateFilters();applyModeUI();renderKpis();checkSystemStatus();
 let map=null,provinceLayer=null,backgroundTiles=null;
 let loadedTiles=0,failedTiles=0,boundaryRequest=0,detailedAreaLayer=null;
 const boundaryCache=new Map();
