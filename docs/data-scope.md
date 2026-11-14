@@ -63,6 +63,12 @@ The dashboard map is colored by the share of resident population aged 0–17. Ch
 
 The National Center for the Rights of the Child's 2025 year-end directory is not displayed. Its crosswalk to current districts and reuse conditions remain unresolved; do not merge it with the standard dataset into a single current facility count. The detailed coverage and missing-field review is in [child-welfare-data-review.md](child-welfare-data-review.md).
 
+## Potential youth-facility source (not integrated)
+
+The [national youth training facilities standard dataset](https://www.data.go.kr/data/15129449/standard.do) is a possible separate map layer. Its official catalog page lists CSV among the available formats and fields for facility name, province, district, addresses, contact details, operating organization, main facilities, area, staff count, and representative name. The page showed a last-modified date of 2026-11-02 and an update frequency of "as needed" when reviewed on 2026-11-14.
+
+The downloaded file itself was not verified in this review, so its row count, current record coverage, and actual unauthenticated download behavior are unknown. The dataset page links to the portal's general reuse policy instead of showing a dataset-specific license; check the provider's rights before redistributing records. The official field list includes representative names; exclude that field from any generated database, browser payload, and report. The listed fields do not include coordinates, and facility-level geocoding has not been done. If later integrated, show it as a separate youth activity-facility layer; it has no verified capacity, waiting-list, or availability fields and cannot measure care coverage or a service gap.
+
 ## Missing information
 
 - Actual service use, applications, waitlists, unmet requests, and referral outcomes are not present in the active public datasets.
