@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { constants } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,6 +26,15 @@ const files = new Map([
 
 function normalize(value) {
   return String(value ?? '').replaceAll('\u00a0', ' ').replace(/\s+/g, ' ').trim();
+}
+
+function sendJsonError(res, message) {
+  res.writeHead(400, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
+  });
+  res.end(JSON.stringify({ error: message }));
 }
 
 function parseCsv(text, label) {
@@ -199,7 +209,12 @@ function searchServiceResources({ query, province, district, category, limit }) 
 
 const server = createServer(async (req, res) => {
   if (req.method !== 'GET') {
-    res.writeHead(405, { 'Allow': 'GET', 'Content-Type': 'text/plain; charset=utf-8' });
+    res.writeHead(405, {
+      'Allow': 'GET',
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
     res.end('Method not allowed');
     return;
   }
@@ -211,7 +226,7 @@ const server = createServer(async (req, res) => {
       const entry = files.get(route);
       if (!entry) return false;
       try {
-        await access(join(root, entry[0]));
+        await access(join(root, entry[0]), constants.R_OK);
         return true;
       } catch {
         return false;
@@ -245,12 +260,19 @@ const server = createServer(async (req, res) => {
 
   if (pathname === '/api/area-boundaries') {
     const url = new URL(req.url, 'http://127.0.0.1');
-    const province = normalize(url.searchParams.get('province')).slice(0, 60);
-    const district = normalize(url.searchParams.get('district')).slice(0, 60);
-    const code = normalize(url.searchParams.get('code')).slice(0, 10);
+    const province = normalize(url.searchParams.get('province'));
+    const district = normalize(url.searchParams.get('district'));
+    const code = normalize(url.searchParams.get('code'));
+    if (province.length > 60 || district.length > 60) {
+      sendJsonError(res, '지역 이름은 60자 이하로 입력해 주세요.');
+      return;
+    }
+    if (code && !/^\d{10}$/.test(code)) {
+      sendJsonError(res, '행정동 코드는 10자리 숫자로 입력해 주세요.');
+      return;
+    }
     if (!province) {
-      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({ error: '시도를 선택해 주세요.' }));
+      sendJsonError(res, '시도를 선택해 주세요.');
       return;
     }
 
@@ -271,16 +293,23 @@ const server = createServer(async (req, res) => {
 
   if (pathname === '/api/resources') {
     const url = new URL(req.url, 'http://127.0.0.1');
-    const query = normalize(url.searchParams.get('query')).slice(0, 150);
+    const query = normalize(url.searchParams.get('query'));
+    if (query.length > 150) {
+      sendJsonError(res, '검색어는 150자 이하로 입력해 주세요.');
+      return;
+    }
     if (query.length < 2) {
-      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({ error: '필요한 도움을 두 글자 이상 입력해 주세요.' }));
+      sendJsonError(res, '필요한 도움을 두 글자 이상 입력해 주세요.');
       return;
     }
 
-    const province = normalize(url.searchParams.get('province')).slice(0, 60);
-    const district = normalize(url.searchParams.get('district')).slice(0, 60);
-    const category = normalize(url.searchParams.get('category')).slice(0, 60);
+    const province = normalize(url.searchParams.get('province'));
+    const district = normalize(url.searchParams.get('district'));
+    const category = normalize(url.searchParams.get('category'));
+    if (province.length > 60 || district.length > 60 || category.length > 60) {
+      sendJsonError(res, '지역과 분류 값은 각각 60자 이하로 입력해 주세요.');
+      return;
+    }
     const rawLimit = url.searchParams.get('limit');
     const parsedLimit = rawLimit === null || normalize(rawLimit) === '' ? 8 : Number(rawLimit);
     const limit = Number.isInteger(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 12)) : 8;
