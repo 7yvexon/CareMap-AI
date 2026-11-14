@@ -53,6 +53,12 @@ Do not report an improvement or model accuracy until these measurements have bee
 
 `data/ulsan_admin_dong.csv`, `data/ulsan_care_platforms.csv`, and their generated artifacts remain as historical pilot references. The current dashboard does not load them. Ulsan's local elder-care platform category is distinct from the NHIS service taxonomy and must not be counted as equivalent without checking service definitions.
 
+## Candidate child-care layer (not active)
+
+The official [national local children's center standard dataset](https://www.data.go.kr/data/15129438/standard.do) was collected as `data/source/national_child_centers_20261114.json` for evaluation. It has 2,570 rows, coordinates, and optional capacity/current-child/staff fields. It is not loaded by `scripts/build-data.mjs` or shown in the dashboard. The detailed coverage and missing-field review is in [child-welfare-data-review.md](child-welfare-data-review.md).
+
+Do not treat districts without an observed record as districts with no centers or as confirmed welfare gaps. For a future layer, use the existing MOIS single-year age population file to derive ages 0–17, spatially join center coordinates to the current administrative boundaries, and show the data-coverage and missing-capacity rates beside any center-density indicator. The all-children population is only a broad denominator, not a count of children eligible for or needing support.
+
 ## Missing information
 
 - Actual service use, applications, waitlists, unmet requests, and referral outcomes are not present in the active public datasets.
