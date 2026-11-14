@@ -8,6 +8,7 @@
 | MOIS single-person households by administrative dong ([source](https://www.data.go.kr/data/15097973/fileData.do)) | Total and age-specific single-person household counts; calculate age 65+ | 2026-10-31 | Administrative dong | A one-person household is not proof of isolation or care need |
 | NHIS integrated-care service resources ([source](https://www.data.go.kr/data/15173720/fileData.do)) | Searchable service-resource/program rows; aggregate by province, district and category | 2026-06-30 | Province and district names; 90,081 data rows in downloaded CSV | One-time snapshot; rows are not unique institutions or service capacity; some fields are blank |
 | geoBoundaries/Natural Earth KOR ADM1 ([metadata](https://www.geoboundaries.org/api/current/gbOpen/KOR/ADM1/)) | Province-level map geometry | 2021 | 17 source polygons combined into 16 current data groups | Geography is a simplified map reference, not a current cadastral boundary source |
+| SGIS administrative-dong boundaries, processed by [vuski/admdongkor](https://github.com/vuski/admdongkor/tree/master/ver20261001) | Province drill-down, neighborhood polygons, map zoom and selection | 2026-10-01 | `adm_cd2` 10-digit code; GeoJSON WGS84 | CC BY 4.0; 3,558 of 3,620 population codes match; some branch offices/new units have no matching polygon |
 
 ## Join and aggregation rules
 
@@ -19,7 +20,10 @@
 - The NHIS file contains 505 blank addresses and 3,559 blank phone fields. These rates are calculated from the 90,081 data rows.
 - Six NHIS text characters cannot be decoded from the downloaded CSV as `euc-kr`; generated strings use replacement characters, and the raw CSV is preserved unchanged.
 - The portal description states 34 minor categories, while 28 distinct minor categories have records in this CSV. Verify whether the other six categories have no records in this snapshot or were omitted before claiming complete category coverage.
-- Map boundaries contain separate 2021 Gwangju and South Jeolla polygons; both are grouped under `전남광주통합특별시` for this data snapshot.
+- Join detailed administrative-dong geometry to population rows by the exact 10-digit `adm_cd2`/`행정기관코드`; do not infer a dong polygon from the display name.
+- The boundary file has 3,559 features: 3,558 match a population code and one older/unmatched feature remains. Sixty-two population rows have no exact polygon (mostly 출장소). Selecting one of those rows displays its parent 시군구's available polygons and shows a boundary-coverage notice.
+- District display names are whitespace-normalized when filtering boundary features because some boundary names concatenate city and district names (for example, `수원시장안구`).
+- Province background boundaries contain separate 2021 Gwangju and South Jeolla polygons; both are grouped under `전남광주통합특별시`. Selected lower-level areas use the 2026-10-01 SGIS-based boundaries.
 
 ## Service search and proposed AI role
 
@@ -59,5 +63,7 @@ Do not report an improvement or model accuracy until these measurements have bee
 
 - `data/national_data.js` for the browser
 - `data/national_district_summary.csv` for review and reuse
+
+`server.mjs` reads `data/source/admin_dong_boundaries_20261001.geojson.gz` and serves only the selected province or district boundary set from `/api/area-boundaries`. The GeoJSON is gzip-compressed losslessly in the repository. Its data attribution is inherited from SGIS and the CC BY 4.0 processing terms documented by `vuski/admdongkor`.
 
 The portal CSV files are CP949 encoded. The build script decodes them as `euc-kr`; do not resave the raw inputs as UTF-8 without updating their provenance and decoding rules.

@@ -10,7 +10,7 @@ Node.js 18 이상에서 저장소 루트에서 실행합니다.
 npm start
 ```
 
-브라우저에서 http://127.0.0.1:8765/ 를 엽니다. 시작 전에 `scripts/build-data.mjs`가 원본 CSV를 읽어 화면용 자료와 시군구 요약 CSV를 다시 생성합니다. 서버는 서비스 원본 CSV를 메모리에 읽어 지역·키워드 검색 API를 제공합니다. 배경지도에는 인터넷 연결이 필요합니다.
+브라우저에서 http://127.0.0.1:8765/ 를 엽니다. 시작 전에 `scripts/build-data.mjs`가 원본 CSV를 읽어 화면용 자료와 시군구 요약 CSV를 다시 생성합니다. 서버는 서비스 원본 CSV와 압축 행정동 경계를 읽어 검색 API와 선택 지역별 경계 API를 제공합니다. 배경지도에는 인터넷 연결이 필요합니다.
 
 ## 현재 범위
 
@@ -18,6 +18,7 @@ npm start
 - 행정동별 65세 이상 주민등록인구와 65세 이상 1인 세대
 - 시군구별 통합돌봄 서비스 자원 목록 90,081행을 6개 실제 대분류로 집계
 - 시도 지도, 시군구 비교, 행정동 고령인구 참고 순위
+- 전국 시도 → 시군구 → 읍면동 단계 선택, 지도 경계 클릭 및 선택 행정구역 확대
 - 선택 지역에서 필요한 도움을 입력해 프로그램명·분류·기관명에 일치하는 서비스 후보 검색
 - 자료 기준일, 원자료 링크, 주소·연락처 공란 수를 화면에 표시
 
@@ -40,12 +41,12 @@ npm start
 - 인구 자료는 2026-10-31, 서비스 자원 목록은 2026-06-30 기준입니다. 목록은 일회성 스냅샷이므로 기준일을 분리해 표시합니다.
 - 서비스 자원 목록에는 기관별 정원·현원·대기 인원·이용량이 없습니다. 장기요양기관 API에서 제공되는 일부 기관의 수용 정보는 이 버전에 결합하지 않았습니다.
 - 서비스 주소를 개별 좌표로 바꾸지 않았습니다. 지도에는 기관 핀이나 이동시간·서비스 커버리지를 표시하지 않습니다.
-- 지도 경계는 geoBoundaries/Natural Earth의 2021년 시도 자료입니다. 현행 자료의 전남광주통합특별시는 과거 광주·전남 폴리곤을 합쳐 표시합니다.
+- 전국 시도 배경 경계는 geoBoundaries/Natural Earth 2021 자료이며, 선택 시군구·읍면동은 통계청 SGIS 기반 2026-10-01 경계를 표시합니다. 인구자료의 3,620개 행정동 가운데 3,558개 코드가 세부 경계와 일치합니다. 출장소 등 62개 단위는 개별 경계가 없어 상위 시군구 범위로 안내합니다.
 - 현재 버전은 예측 모델을 학습한 AI가 아니라 공개자료 기반의 집계·비교 시제품입니다.
 
 ## 원본 및 생성 파일
 
-- 원본 CSV와 행정경계 파일: `data/source/`
+- 원본 CSV와 행정경계 파일: `data/source/` (읍면동 경계 GeoJSON은 gzip으로 무손실 압축)
 - 전국 행정동 자료, 시군구·시도 집계, 지도 경계: `data/national_data.js` (생성)
 - 시군구 집계 CSV: `data/national_district_summary.csv` (생성)
 - 기존 울산 시범 자료는 비교 참고용으로 저장소에 남아 있으며 현재 대시보드에서 사용하지 않습니다.
@@ -58,5 +59,6 @@ npm start
 - 행정안전부, [지역별(행정동) 성별 연령별 주민등록 1인세대수](https://www.data.go.kr/data/15097973/fileData.do), 2026-10-31, 이용허락범위 제한 없음
 - 국민건강보험공단, [통합돌봄 서비스 자원](https://www.data.go.kr/data/15173720/fileData.do), 2026-06-30, 이용허락범위 제한 없음, 일회성 자료
 - geoBoundaries, [KOR ADM1 metadata](https://www.geoboundaries.org/api/current/gbOpen/KOR/ADM1/), Natural Earth 2021, Public Domain
+- 읍면동 경계: [통계청 SGIS](https://sgis.mods.go.kr/view/pss/openDataIntrcn) 자료를 [vuski/admdongkor](https://github.com/vuski/admdongkor/tree/master/ver20261001)가 수정·가공한 2026-10-01 파일, CC BY 4.0. 출처 표시는 가공 경계에도 유지합니다.
 - 지도 타일: [OpenStreetMap contributors](https://www.openstreetmap.org/copyright)
 - Leaflet 1.9.4: [BSD 2-Clause license](https://github.com/Leaflet/Leaflet/blob/v1.9.4/LICENSE)

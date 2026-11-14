@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TextDecoder } from 'node:util';
+import { gunzipSync } from 'node:zlib';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const resourcePath = join(root, 'data/source/nhis_integrated_care_resources_20260630.csv');
@@ -72,7 +73,8 @@ function parseCsv(text, label) {
   });
 }
 
-const sourceRows = parseCsv(koreanDecoder.decode(await readFile(resourcePath)), resourcePath);
+let sourceRows = parseCsv(koreanDecoder.decode(await readFile(resourcePath)), resourcePath);
+const resourceRowCount = sourceRows.length;
 const serviceResources = sourceRows.map((row, index) => ({
   id: index + 1,
   sido: normalize(row['시도']),
@@ -84,6 +86,36 @@ const serviceResources = sourceRows.map((row, index) => ({
   minor: normalize(row['중분류']) || '분류 미기재',
   program: normalize(row['프로그램명칭']),
 }));
+sourceRows = null;
+
+const boundaryPath = join(root, 'data/source/admin_dong_boundaries_20261001.geojson.gz');
+const boundaryCollection = JSON.parse(gunzipSync(await readFile(boundaryPath)).toString('utf8'));
+const nationalDataSource = await readFile(join(root, 'data/national_data.js'), 'utf8');
+const nationalDataJson = nationalDataSource.slice(nationalDataSource.indexOf('{'), nationalDataSource.lastIndexOf('}') + 1);
+const populationDongCodes = new Set(JSON.parse(nationalDataJson).areas.map(area => area.code));
+const compactRegionName = value => normalize(value).replace(/\s+/g, '');
+const boundariesByProvince = new Map();
+const boundariesByDistrict = new Map();
+const boundariesByDongCode = new Map();
+
+for (const feature of boundaryCollection.features ?? []) {
+  const properties = feature.properties ?? {};
+  const sido = normalize(properties.sidonm);
+  const sigungu = normalize(properties.sggnm);
+  const code = normalize(properties.adm_cd2);
+  const fullName = normalize(properties.adm_nm);
+  if (!populationDongCodes.has(code)) continue;
+  const prefix = normalize(`${sido} ${sigungu}`);
+  const dong = fullName.startsWith(prefix) ? normalize(fullName.slice(prefix.length)) : fullName.split(/\s+/).at(-1);
+  feature.properties = { code, sido, sigungu, dong };
+
+  if (!boundariesByProvince.has(sido)) boundariesByProvince.set(sido, []);
+  boundariesByProvince.get(sido).push(feature);
+  const districtKey = `${sido}\u001f${compactRegionName(sigungu)}`;
+  if (!boundariesByDistrict.has(districtKey)) boundariesByDistrict.set(districtKey, []);
+  boundariesByDistrict.get(districtKey).push(feature);
+  if (code) boundariesByDongCode.set(code, feature);
+}
 
 const intentRules = [
   { terms: ['식사', '반찬', '밥', '영양'], categories: ['식사지원'] },
@@ -160,6 +192,32 @@ const server = createServer(async (req, res) => {
   }
 
   const pathname = new URL(req.url, 'http://127.0.0.1').pathname;
+  if (pathname === '/api/area-boundaries') {
+    const url = new URL(req.url, 'http://127.0.0.1');
+    const province = normalize(url.searchParams.get('province')).slice(0, 60);
+    const district = normalize(url.searchParams.get('district')).slice(0, 60);
+    const code = normalize(url.searchParams.get('code')).slice(0, 10);
+    if (!province) {
+      res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ error: '시도를 선택해 주세요.' }));
+      return;
+    }
+
+    const districtKey = `${province}\u001f${compactRegionName(district)}`;
+    const features = district
+      ? boundariesByDistrict.get(districtKey) ?? []
+      : boundariesByProvince.get(province) ?? [];
+    const selectedBoundaryFound = code ? features.some(feature => feature.properties.code === code) : null;
+    res.writeHead(200, { 'Content-Type': 'application/geo+json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
+    res.end(JSON.stringify({
+      type: 'FeatureCollection',
+      features,
+      boundaryAsOf: '2026-10-01',
+      selectedBoundaryFound,
+    }));
+    return;
+  }
+
   if (pathname === '/api/resources') {
     const url = new URL(req.url, 'http://127.0.0.1');
     const query = normalize(url.searchParams.get('query')).slice(0, 150);
@@ -182,7 +240,7 @@ const server = createServer(async (req, res) => {
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify({
       asOf: '2026-06-30',
-      sourceRows: sourceRows.length,
+      sourceRows: resourceRowCount,
       searchMethod: '규칙 기반 키워드·서비스 유형 후보 검색',
       inferredCategories,
       results,
@@ -213,5 +271,5 @@ const server = createServer(async (req, res) => {
 
 const port = Number(process.env.PORT || 8765);
 server.listen(port, '127.0.0.1', () => {
-  console.log(`CareMap AI: http://127.0.0.1:${port} (${serviceResources.length} service-resource rows indexed)`);
+  console.log(`CareMap AI: http://127.0.0.1:${port} (${serviceResources.length} resources, ${boundariesByDongCode.size} dong boundaries indexed)`);
 });
