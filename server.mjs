@@ -48,11 +48,21 @@ const nationalDataJson = nationalDataSource.slice(nationalDataSource.indexOf('{'
 const nationalData = JSON.parse(nationalDataJson);
 const populationDongCodes = new Set(nationalData.areas.map(area => area.code));
 const expectedProvinceNames = new Set(nationalData.provinces.map(province => normalize(province.sido)).filter(Boolean));
+const nationalDistricts = Array.isArray(nationalData.districts) ? nationalData.districts : [];
+const expectedDistrictCount = Number(nationalData.metadata?.districtCount);
+const expectedDistrictCodes = new Set(nationalDistricts.map(district => normalize(district.sigunguCode)).filter(Boolean));
+const expectedDistrictCodeSetReady = Number.isInteger(expectedDistrictCount)
+  && expectedDistrictCount > 0
+  && nationalDistricts.length === expectedDistrictCount
+  && expectedDistrictCodes.size === expectedDistrictCount
+  && nationalDistricts.every(district => /^\d{5}$/.test(normalize(district.sigunguCode)));
 const allowedIntentCategories = new Set(nationalData.minorCategories.map(normalize).filter(Boolean));
 const compactRegionName = value => normalize(value).replace(/\s+/g, '');
 const boundariesByProvince = new Map();
 const boundariesByDistrict = new Map();
 const boundariesByDongCode = new Map();
+const indexedDistrictCodes = new Set();
+let invalidIndexedDistrictCodeFeatureCount = 0;
 
 for (const feature of boundaryCollection.features ?? []) {
   const properties = feature.properties ?? {};
@@ -61,6 +71,9 @@ for (const feature of boundaryCollection.features ?? []) {
   const code = normalize(properties.adm_cd2);
   const fullName = normalize(properties.adm_nm);
   if (!populationDongCodes.has(code)) continue;
+  const sigunguCode = normalize(properties.sgg);
+  if (/^\d{5}$/.test(sigunguCode)) indexedDistrictCodes.add(sigunguCode);
+  else invalidIndexedDistrictCodeFeatureCount += 1;
   const prefix = normalize(`${sido} ${sigungu}`);
   const dong = fullName.startsWith(prefix) ? normalize(fullName.slice(prefix.length)) : fullName.split(/\s+/).at(-1);
   feature.properties = { code, sido, sigungu, dong };
@@ -79,6 +92,13 @@ const provincesWithoutBoundaries = [...expectedProvinceNames]
 const unexpectedIndexedProvinces = [...boundariesByProvince.keys()]
   .filter(province => !expectedProvinceNames.has(province))
   .sort((a, b) => a.localeCompare(b, 'ko'));
+const districtsWithoutBoundaries = nationalDistricts
+  .filter(district => !indexedDistrictCodes.has(normalize(district.sigunguCode)))
+  .map(district => normalize(district.districtId))
+  .sort((a, b) => a.localeCompare(b, 'ko'));
+const unexpectedIndexedDistrictCodes = [...indexedDistrictCodes]
+  .filter(code => !expectedDistrictCodes.has(code))
+  .sort();
 
 const intentRules = [
   { terms: ['식사', '반찬', '밥', '영양', '도시락', '배달', '급식'], categories: ['식사지원'] },
@@ -191,9 +211,15 @@ const server = createServer(async (req, res) => {
       && provincesWithoutBoundaries.length === 0
       && unexpectedIndexedProvinces.length === 0
       && boundariesByProvince.size === expectedProvinceNames.size;
+    const districtBoundaryCoverageReady = expectedDistrictCodeSetReady
+      && indexedDistrictCodes.size === expectedDistrictCount
+      && districtsWithoutBoundaries.length === 0
+      && unexpectedIndexedDistrictCodes.length === 0
+      && invalidIndexedDistrictCodeFeatureCount === 0;
     const areaBoundariesReady = boundaryFeatureCount > 0
       && boundariesByDongCode.size > 0
-      && provinceBoundaryCoverageReady;
+      && provinceBoundaryCoverageReady
+      && districtBoundaryCoverageReady;
     const ready = pageAssetsReady && serviceSearchReady && areaBoundariesReady;
     const payload = {
       ready,
@@ -203,6 +229,11 @@ const server = createServer(async (req, res) => {
       indexedProvinceCount: boundariesByProvince.size,
       provincesWithoutBoundaries,
       unexpectedIndexedProvinces,
+      expectedDistrictCount,
+      indexedDistrictCount: indexedDistrictCodes.size,
+      districtsWithoutBoundaries,
+      unexpectedIndexedDistrictCodes,
+      invalidIndexedDistrictCodeFeatureCount,
       referenceDates: {
         serviceResources: serviceResourcesAsOf,
         adminBoundaries: adminBoundariesAsOf,
@@ -210,6 +241,7 @@ const server = createServer(async (req, res) => {
       checks: {
         pageAssets: pageAssetsReady,
         serviceSearch: serviceSearchReady,
+        districtBoundaryCoverage: districtBoundaryCoverageReady,
         areaBoundaries: areaBoundariesReady,
       },
     };
