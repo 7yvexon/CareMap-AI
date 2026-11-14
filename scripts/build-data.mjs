@@ -2,6 +2,12 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TextDecoder } from 'node:util';
+import { gunzipSync } from 'node:zlib';
+import {
+  buildDistrictSpatialIndex,
+  findAddressCoordinateConflicts,
+  locatePoint,
+} from './lib/point-region-join.mjs';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const koreanDecoder = new TextDecoder('euc-kr');
@@ -74,14 +80,31 @@ function number(value, label) {
   return parsed;
 }
 
+function countNumber(value, label) {
+  const text = normalize(value).replaceAll(',', '');
+  if (!text) throw new Error(`Missing count for ${label}`);
+  const parsed = Number(text);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) throw new Error(`Invalid non-negative integer count for ${label}: ${value}`);
+  return parsed;
+}
+
 function elderlyTotal(row, label) {
   let total = 0;
   for (let age = 65; age <= 109; age++) {
-    total += number(row[`${age}세남자`], `${label}.${age}세남자`);
-    total += number(row[`${age}세여자`], `${label}.${age}세여자`);
+    total += countNumber(row[`${age}세남자`], `${label}.${age}세남자`);
+    total += countNumber(row[`${age}세여자`], `${label}.${age}세여자`);
   }
-  total += number(row['110세이상 남자'], `${label}.110세이상 남자`);
-  total += number(row['110세이상 여자'], `${label}.110세이상 여자`);
+  total += countNumber(row['110세이상 남자'], `${label}.110세이상 남자`);
+  total += countNumber(row['110세이상 여자'], `${label}.110세이상 여자`);
+  return total;
+}
+
+function childrenTotal(row, label) {
+  let total = 0;
+  for (let age = 0; age <= 17; age++) {
+    total += countNumber(row[`${age}세남자`], `${label}.${age}세남자`);
+    total += countNumber(row[`${age}세여자`], `${label}.${age}세여자`);
+  }
   return total;
 }
 
@@ -103,6 +126,10 @@ const householdRows = await readCsv('data/source/mois_admin_dong_single_person_h
 const resourceRows = await readCsv('data/source/nhis_integrated_care_resources_20260630.csv');
 const facilityPopulationRows = await readCsv('data/source/mohw_welfare_facility_population_20251231.csv');
 const boundarySource = JSON.parse(await readFile(join(root, 'data/source/kor_admin1_boundaries_2021.geojson'), 'utf8'));
+const childCenterRows = JSON.parse(await readFile(join(root, 'data/source/national_child_centers_20261114.json'), 'utf8'));
+const childCenterBoundaryData = JSON.parse(gunzipSync(await readFile(join(root, 'data/source/admin_dong_boundaries_20261001.geojson.gz'))).toString('utf8'));
+if (!Array.isArray(childCenterRows)) throw new Error('National child center source must be a JSON array');
+const childCenterSpatialIndex = buildDistrictSpatialIndex(childCenterBoundaryData);
 
 const householdsByCode = new Map();
 for (const row of householdRows) {
@@ -127,11 +154,12 @@ const areas = populationRows.map(row => {
   const population = number(row['계'], `${code}.population`);
   const male = number(row['남자'], `${code}.male`);
   const female = number(row['여자'], `${code}.female`);
+  const children0To17 = childrenTotal(row, code);
   const elderly = elderlyTotal(row, code);
   const singlePersonHouseholds = number(householdRow['계'], `${code}.singlePersonHouseholds`);
   const elderlySinglePersonHouseholds = elderlyTotal(householdRow, `${code}.elderlySinglePersonHouseholds`);
 
-  if (population !== male + female || elderly > population) {
+  if (population !== male + female || children0To17 + elderly > population) {
     throw new Error(`Population values do not reconcile for ${code}`);
   }
   if (number(householdRow['남자'], `${code}.maleSinglePersonHouseholds`) +
@@ -155,6 +183,8 @@ const areas = populationRows.map(row => {
     population,
     male,
     female,
+    children0To17,
+    childrenRate: population ? children0To17 / population : 0,
     elderly,
     elderlyRate: population ? elderly / population : 0,
     singlePersonHouseholds,
@@ -169,6 +199,10 @@ const areas = populationRows.map(row => {
     sigunguCode: area.sigunguCode,
     dongCount: 0,
     population: 0,
+    children0To17: 0,
+    childCenterRecordRows: 0,
+    childCenterCoordinateAssignedRows: 0,
+    childCenterAddressCoordinateReviewRows: 0,
     elderly: 0,
     singlePersonHouseholds: 0,
     elderlySinglePersonHouseholds: 0,
@@ -180,6 +214,7 @@ const areas = populationRows.map(row => {
   };
   district.dongCount++;
   district.population += population;
+  district.children0To17 += children0To17;
   district.elderly += elderly;
   district.singlePersonHouseholds += singlePersonHouseholds;
   district.elderlySinglePersonHouseholds += elderlySinglePersonHouseholds;
@@ -190,6 +225,10 @@ const areas = populationRows.map(row => {
     dongCount: 0,
     districtCount: 0,
     population: 0,
+    children0To17: 0,
+    childCenterRecordRows: 0,
+    childCenterCoordinateAssignedRows: 0,
+    childCenterAddressCoordinateReviewRows: 0,
     elderly: 0,
     singlePersonHouseholds: 0,
     elderlySinglePersonHouseholds: 0,
@@ -200,6 +239,7 @@ const areas = populationRows.map(row => {
   };
   province.dongCount++;
   province.population += population;
+  province.children0To17 += children0To17;
   province.elderly += elderly;
   province.singlePersonHouseholds += singlePersonHouseholds;
   province.elderlySinglePersonHouseholds += elderlySinglePersonHouseholds;
@@ -211,6 +251,69 @@ const areas = populationRows.map(row => {
 if (householdsByCode.size !== adminCodes.size || [...householdsByCode.keys()].some(code => !adminCodes.has(code))) {
   throw new Error('Population and single-household administrative codes do not match');
 }
+
+const populationDistrictsByCode = new Map([...districtsByKey.values()].map(district => [district.sigunguCode, district]));
+const childCenterCoordinateRecords = childCenterRows.map((row, index) => {
+  const latitudeText = normalize(row.LAT).replaceAll(',', '');
+  const longitudeText = normalize(row.LOT).replaceAll(',', '');
+  const latitude = latitudeText ? Number(latitudeText) : Number.NaN;
+  const longitude = longitudeText ? Number(longitudeText) : Number.NaN;
+  return {
+    rowNumber: index + 1,
+    latitude,
+    longitude,
+    addressTexts: [normalize(row.LCTN_ROAD_NM), normalize(row.LCTN_LOTNO_ADDR)].filter(Boolean),
+    regionCode: '',
+    joinStatus: 'not_processed',
+  };
+});
+
+let childCenterCoordinateAssignedRows = 0;
+let childCenterUnassignedRows = 0;
+for (const record of childCenterCoordinateRecords) {
+  const result = locatePoint(record.longitude, record.latitude, childCenterSpatialIndex);
+  record.joinStatus = result.status;
+  if (!result.district) {
+    childCenterUnassignedRows++;
+    continue;
+  }
+  record.regionCode = result.district.code;
+  const populationDistrict = populationDistrictsByCode.get(record.regionCode);
+  if (!populationDistrict) {
+    childCenterUnassignedRows++;
+    record.joinStatus = 'district_not_in_population_reference';
+    continue;
+  }
+  childCenterCoordinateAssignedRows++;
+  populationDistrict.childCenterCoordinateAssignedRows++;
+  const province = provincesByName.get(populationDistrict.sido);
+  province.childCenterCoordinateAssignedRows++;
+}
+
+const childCenterAddressCoordinateConflicts = findAddressCoordinateConflicts(
+  childCenterCoordinateRecords,
+  [...childCenterSpatialIndex.districts.values()],
+);
+const childCenterConflictRows = new Set(childCenterAddressCoordinateConflicts.map(conflict => conflict.recordId));
+for (const record of childCenterCoordinateRecords) {
+  if (!record.regionCode || !populationDistrictsByCode.has(record.regionCode)) continue;
+  const populationDistrict = populationDistrictsByCode.get(record.regionCode);
+  const province = provincesByName.get(populationDistrict.sido);
+  if (childCenterConflictRows.has(record.rowNumber)) {
+    populationDistrict.childCenterAddressCoordinateReviewRows++;
+    province.childCenterAddressCoordinateReviewRows++;
+  } else {
+    populationDistrict.childCenterRecordRows++;
+    province.childCenterRecordRows++;
+  }
+}
+
+const childCenterSourceDates = childCenterRows
+  .map(row => normalize(row.DATA_CRTR_YMD).replace(/[^0-9]/g, '').slice(0, 8))
+  .filter(value => /^\d{8}$/.test(value))
+  .sort();
+const childCenterObservedDistrictCount = [...districtsByKey.values()]
+  .filter(district => district.childCenterRecordRows > 0).length;
 
 const majorCategories = new Set();
 const minorCategories = new Set();
@@ -445,6 +548,7 @@ const districts = [...districtsByKey.values()]
   .map(district => ({
     ...district,
     displayName: district.sigungu || district.sido,
+    childrenRate: district.population ? district.children0To17 / district.population : 0,
     elderlyRate: district.population ? district.elderly / district.population : 0,
     resourceCategoryCount: Object.keys(district.resourcesByMajor).length,
   }))
@@ -453,9 +557,21 @@ const districts = [...districtsByKey.values()]
 const provinces = [...provincesByName.values()]
   .map(province => ({
     ...province,
+    childrenRate: province.population ? province.children0To17 / province.population : 0,
     elderlyRate: province.population ? province.elderly / province.population : 0,
   }))
   .sort((a, b) => a.sido.localeCompare(b.sido, 'ko'));
+
+const childrenPopulationByArea = areas.reduce((sum, area) => sum + area.children0To17, 0);
+const childrenPopulationByDistrict = districts.reduce((sum, district) => sum + district.children0To17, 0);
+const childrenPopulationByProvince = provinces.reduce((sum, province) => sum + province.children0To17, 0);
+if (childrenPopulationByArea !== childrenPopulationByDistrict || childrenPopulationByArea !== childrenPopulationByProvince) {
+  throw new Error('0–17 population totals do not reconcile across administrative levels');
+}
+
+function isoDate(compactDate) {
+  return compactDate ? `${compactDate.slice(0, 4)}-${compactDate.slice(4, 6)}-${compactDate.slice(6, 8)}` : null;
+}
 
 const metadata = {
   populationAsOf: '2026-10-31',
@@ -465,6 +581,17 @@ const metadata = {
   populationRows: areas.length,
   districtCount: districts.length,
   provinceCount: provinces.length,
+  children0To17Population: childrenPopulationByArea,
+  childCenterCollectionAsOf: '2026-11-14',
+  childCenterRows: childCenterRows.length,
+  childCenterDataAsOfMin: isoDate(childCenterSourceDates[0]),
+  childCenterDataAsOfMax: isoDate(childCenterSourceDates.at(-1)),
+  childCenterCoordinateAssignedRows,
+  childCenterUnassignedRows,
+  childCenterAddressCoordinateReviewRows: childCenterConflictRows.size,
+  childCenterDistrictCount: districts.length,
+  childCenterObservedDistrictCount,
+  childCenterUnobservedDistrictCount: districts.length - childCenterObservedDistrictCount,
   elderlyPopulation: areas.reduce((sum, area) => sum + area.elderly, 0),
   elderlySinglePersonHouseholds: areas.reduce((sum, area) => sum + area.elderlySinglePersonHouseholds, 0),
   resourceRows: resourceRows.length,
@@ -498,7 +625,9 @@ const data = {
 };
 
 const summaryHeaders = [
-  'sido', 'sigungu', 'sigungu_code', 'dong_count', 'population', 'elderly_65_plus',
+  'sido', 'sigungu', 'sigungu_code', 'dong_count', 'population', 'children_0_17', 'children_0_17_rate',
+  'child_center_standard_data_rows', 'child_center_coordinate_assigned_rows',
+  'child_center_address_coordinate_review_rows', 'elderly_65_plus',
   'elderly_65_plus_rate', 'elderly_single_person_households_65_plus', 'service_resource_rows',
   'missing_address_rows', 'missing_phone_rows', 'facility_population_source_scope',
   'facility_population_source_area',
@@ -516,6 +645,11 @@ for (const district of districts) {
     sigungu_code: district.sigunguCode,
     dong_count: district.dongCount,
     population: district.population,
+    children_0_17: district.children0To17,
+    children_0_17_rate: district.childrenRate.toFixed(6),
+    child_center_standard_data_rows: district.childCenterRecordRows,
+    child_center_coordinate_assigned_rows: district.childCenterCoordinateAssignedRows,
+    child_center_address_coordinate_review_rows: district.childCenterAddressCoordinateReviewRows,
     elderly_65_plus: district.elderly,
     elderly_65_plus_rate: district.elderlyRate.toFixed(6),
     elderly_single_person_households_65_plus: district.elderlySinglePersonHouseholds,

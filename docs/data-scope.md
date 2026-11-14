@@ -4,16 +4,18 @@
 
 | Dataset | Use | Reference date | Unit | Limits |
 | --- | --- | --- | --- | --- |
-| MOIS resident population by administrative dong ([source](https://www.data.go.kr/data/15097972/fileData.do)) | Total and age-specific resident counts; calculate age 65+ | 2026-10-31 | Administrative dong | Demographic proxy, not care eligibility or unmet need |
+| MOIS resident population by administrative dong ([source](https://www.data.go.kr/data/15097972/fileData.do)) | Total and age-specific resident counts; calculate ages 0–17 and 65+ | 2026-10-31 | Administrative dong | Demographic proxy, not care eligibility or unmet need |
 | MOIS single-person households by administrative dong ([source](https://www.data.go.kr/data/15097973/fileData.do)) | Total and age-specific single-person household counts; calculate age 65+ | 2026-10-31 | Administrative dong | A one-person household is not proof of isolation or care need |
 | NHIS integrated-care service resources ([source](https://www.data.go.kr/data/15173720/fileData.do)) | Searchable service-resource/program rows; aggregate by province, district and category | 2026-06-30 | Province and district names; 90,081 data rows in downloaded CSV | One-time snapshot; rows are not unique institutions or service capacity; some fields are blank |
 | MOHW welfare-facility population by type ([source](https://www.data.go.kr/data/15161046/fileData.do)) | Show elderly-related facility-type admission capacity and facility-resident counts | 2025-12 (latest month in the one-time file) | 245 observed area labels; latest month has 4,230 area-by-type rows and 35 types | Regional aggregates, not dong or facility records; values are not vacancies or current availability; source geography predates the 2026 administrative changes |
+| National local children's center standard data ([source](https://www.data.go.kr/data/15129438/standard.do)) | Aggregate record-row status by coordinate-assigned district | Collected 2026-11-14; source row dates 2024-08-08–2026-10-26 | 2,570 rows; 2,564 ordinary rows plus 6 address/coordinate review candidates | Rows are not unique facilities, operating status, capacity, or availability; districts without a row are unobserved in this snapshot |
 | geoBoundaries/Natural Earth KOR ADM1 ([metadata](https://www.geoboundaries.org/api/current/gbOpen/KOR/ADM1/)) | Province-level map geometry | 2021 | 17 source polygons combined into 16 current data groups | Geography is a simplified map reference, not a current cadastral boundary source |
 | SGIS administrative-dong boundaries, processed by [vuski/admdongkor](https://github.com/vuski/admdongkor/tree/master/ver20261001) | Province drill-down, neighborhood polygons, map zoom and selection | 2026-10-01 | `adm_cd2` 10-digit code; GeoJSON WGS84 | CC BY 4.0; 3,558 of 3,620 population codes match; some branch offices/new units have no matching polygon |
 
 ## Join and aggregation rules
 
 - Join the MOIS population and single-person household files by their 10-digit `행정기관코드`, never by district display names.
+- Derive ages 0–17 by summing male and female counts for ages 0 through 17. `countNumber` rejects blank or missing values, negative values, non-integers, and values outside the safe-integer range, so a missing required age header fails the build.
 - Derive age 65+ as ages 65 through 109 plus the 110+ column, summing male and female counts.
 - Aggregate demographic counts from administrative dong to province and district using the source province/district labels; retain the first five digits of the administrative code as the district code for review.
 - The NHIS resource file has no administrative code. Its province/district names are normalized for whitespace and matched against MOIS names. Every named region in the downloaded file matched an MOIS region. Sejong entries with a blank district name are kept at Sejong’s province-wide level.
@@ -53,11 +55,13 @@ Do not report an improvement or model accuracy until these measurements have bee
 
 `data/ulsan_admin_dong.csv`, `data/ulsan_care_platforms.csv`, and their generated artifacts remain as historical pilot references. The current dashboard does not load them. Ulsan's local elder-care platform category is distinct from the NHIS service taxonomy and must not be counted as equivalent without checking service definitions.
 
-## Candidate child-care layer (not active)
+## Current child mode (aggregate status only)
 
-The official [national local children's center standard dataset](https://www.data.go.kr/data/15129438/standard.do) was collected as `data/source/national_child_centers_20261114.json` for evaluation. It has 2,570 rows, coordinates, and optional capacity/current-child/staff fields. It is not loaded by `scripts/build-data.mjs` or shown in the dashboard. The detailed coverage and missing-field review is in [child-welfare-data-review.md](child-welfare-data-review.md).
+The official [national local children's center standard dataset](https://www.data.go.kr/data/15129438/standard.do) was collected on 2026-11-14 as `data/source/national_child_centers_20261114.json`; the portal listed 2026-11-13 as its last-modified date. Its 2,570 rows have different source dates from 2024-08-08 through 2026-10-26. The build spatially assigns all 2,570 coordinates to the saved 2026-10-01 administrative-dong boundaries. Six rows whose normalized address prefix and coordinate-assigned district differ are flagged for review and excluded from ordinary district record counts, leaving 2,564 ordinary rows. They are review candidates, not confirmed coordinate errors.
 
-Do not treat districts without an observed record as districts with no centers or as confirmed welfare gaps. For a future layer, use the existing MOIS single-year age population file to derive ages 0–17, spatially join center coordinates to the current administrative boundaries, and show the data-coverage and missing-capacity rates beside any center-density indicator. The all-children population is only a broad denominator, not a count of children eligible for or needing support.
+The dashboard map is colored by the share of resident population aged 0–17. Children's-center status is shown separately in the nationwide overview and selected-region panel; selecting an administrative dong shows its parent district's status. A district with no ordinary row is labeled as having no record observed in this snapshot, not as having no centers. Across 256 districts, 146 have an ordinary row and 110 are unobserved in this snapshot. The row counts do not establish unique facilities, current operation, capacity, availability, service need, or a welfare gap.
+
+The National Center for the Rights of the Child's 2025 year-end directory is not displayed. Its crosswalk to current districts and reuse conditions remain unresolved; do not merge it with the standard dataset into a single current facility count. The detailed coverage and missing-field review is in [child-welfare-data-review.md](child-welfare-data-review.md).
 
 ## Missing information
 
@@ -69,10 +73,10 @@ Do not treat districts without an observed record as districts with no centers o
 
 ## Generated artifacts
 
-`scripts/build-data.mjs` reads the raw public CSV/GeoJSON files in `data/source/`, validates administrative codes and count reconciliation, merges demographic indicators, aggregates service-resource and welfare-facility population rows, and generates:
+`scripts/build-data.mjs` reads the raw public CSV/JSON/GeoJSON files in `data/source/`, validates administrative codes and count reconciliation, derives ages 0–17 and 65+, aggregates service-resource, welfare-facility population, and children's-center district records, and generates:
 
-- `data/national_data.js` for the browser
-- `data/national_district_summary.csv` for review and reuse
+- `data/national_data.js` for the browser, including age counts and district-level children's-center record status; individual children's-center rows are not included
+- `data/national_district_summary.csv` for review and reuse, including child population and ordinary, coordinate-assigned, and address/coordinate-review row counts
 
 `server.mjs` reads `data/source/admin_dong_boundaries_20261001.geojson.gz` and serves only the selected province or district boundary set from `/api/area-boundaries`. The GeoJSON is gzip-compressed losslessly in the repository. Its data attribution is inherited from SGIS and the CC BY 4.0 processing terms documented by `vuski/admdongkor`.
 
