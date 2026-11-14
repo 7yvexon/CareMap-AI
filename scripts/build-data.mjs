@@ -101,6 +101,7 @@ function quoteCsv(value) {
 const populationRows = await readCsv('data/source/mois_admin_dong_population_20261031.csv');
 const householdRows = await readCsv('data/source/mois_admin_dong_single_person_households_20261031.csv');
 const resourceRows = await readCsv('data/source/nhis_integrated_care_resources_20260630.csv');
+const facilityPopulationRows = await readCsv('data/source/mohw_welfare_facility_population_20251231.csv');
 const boundarySource = JSON.parse(await readFile(join(root, 'data/source/kor_admin1_boundaries_2021.geojson'), 'utf8'));
 
 const householdsByCode = new Map();
@@ -255,6 +256,142 @@ for (const row of resourceRows) {
   minorCategories.add(minor);
 }
 
+const facilitySidoAliases = new Map([...provincesByName.keys()].map(sido => [sido, sido]));
+facilitySidoAliases.set('광주광역시', '전남광주통합특별시');
+facilitySidoAliases.set('전라남도', '전남광주통합특별시');
+const facilitySidoAliasEntries = [...facilitySidoAliases.entries()].sort((a, b) => b[0].length - a[0].length);
+const facilityPopulationAsOf = facilityPopulationRows
+  .map(row => normalize(row['통계연월']))
+  .filter(Boolean)
+  .sort()
+  .at(-1);
+if (!facilityPopulationAsOf) throw new Error('Welfare-facility population file has no reference month');
+
+const facilityRowsForLatestMonth = facilityPopulationRows.filter(
+  row => normalize(row['통계연월']) === facilityPopulationAsOf,
+);
+const facilityAreasBySourceName = new Map();
+const facilityAreasByRegion = new Map();
+const facilityTypes = new Set();
+
+for (const [index, row] of facilityRowsForLatestMonth.entries()) {
+  const sourceAreaName = normalize(row['행정동명']);
+  const aliasEntry = facilitySidoAliasEntries.find(([alias]) =>
+    sourceAreaName === alias || sourceAreaName.startsWith(alias + ' '));
+  if (!aliasEntry) throw new Error('Unmapped welfare-facility area at latest-month row ' + (index + 2) + ': ' + sourceAreaName);
+
+  const [sourceSido, sido] = aliasEntry;
+  const suffix = normalize(sourceAreaName.slice(sourceSido.length));
+  const sigungu = !suffix || suffix === sourceSido || suffix === sido ? '' : suffix;
+  const sourceLevel = sigungu ? 'district' : 'province';
+  const facilityType = normalize(row['복지시설유형명']);
+  if (!facilityType) throw new Error('Welfare-facility row has no facility type: ' + sourceAreaName);
+
+  const area = facilityAreasBySourceName.get(sourceAreaName) ?? {
+    sourceAreaName,
+    sourceSidoName: sourceSido,
+    sido,
+    sigungu,
+    sourceLevel,
+    byType: {},
+  };
+  if (area.sourceSidoName !== sourceSido || area.sido !== sido || area.sigungu !== sigungu || area.sourceLevel !== sourceLevel) {
+    throw new Error('Welfare-facility area maps inconsistently: ' + sourceAreaName);
+  }
+  const stats = area.byType[facilityType] ?? { capacity: 0, residents: 0 };
+  stats.capacity += number(row['입소정원수'], sourceAreaName + '.' + facilityType + '.capacity');
+  stats.residents += number(row['시설생활자수'], sourceAreaName + '.' + facilityType + '.residents');
+  area.byType[facilityType] = stats;
+  facilityAreasBySourceName.set(sourceAreaName, area);
+  facilityTypes.add(facilityType);
+
+  if (sigungu) {
+    const key = regionKey(sido, sigungu);
+    const previous = facilityAreasByRegion.get(key);
+    if (previous && previous.sourceAreaName !== sourceAreaName) {
+      throw new Error('Duplicate welfare-facility district area: ' + sourceAreaName);
+    }
+    facilityAreasByRegion.set(key, area);
+  }
+}
+
+function addFacilityTypes(target, source) {
+  for (const [facilityType, values] of Object.entries(source ?? {})) {
+    const current = target[facilityType] ?? { capacity: 0, residents: 0 };
+    current.capacity += values.capacity;
+    current.residents += values.residents;
+    target[facilityType] = current;
+  }
+}
+
+function makeFacilityPopulation(byType, sourceLevel, sourceAreaNames) {
+  return {
+    asOf: facilityPopulationAsOf,
+    sourceLevel,
+    sourceAreaNames: [...new Set(sourceAreaNames)].sort((a, b) => a.localeCompare(b, 'ko')),
+    byType: Object.fromEntries(Object.entries(byType).sort(([a], [b]) => a.localeCompare(b, 'ko'))),
+  };
+}
+
+const facilityProvinceAreas = new Map();
+for (const area of facilityAreasBySourceName.values()) {
+  const province = facilityProvinceAreas.get(area.sido) ?? { sourceAreaNames: [], byType: {} };
+  province.sourceAreaNames.push(area.sourceSidoName);
+  addFacilityTypes(province.byType, area.byType);
+  facilityProvinceAreas.set(area.sido, province);
+}
+
+for (const province of provincesByName.values()) {
+  const source = facilityProvinceAreas.get(province.sido);
+  if (!source) throw new Error('Welfare-facility data has no province aggregate for ' + province.sido);
+  province.facilityPopulation = makeFacilityPopulation(source.byType, 'province', source.sourceAreaNames);
+}
+
+const facilityDistrictMatchCounts = { district: 0, city: 0, province: 0 };
+for (const district of districtsByKey.values()) {
+  const exact = facilityAreasByRegion.get(regionKey(district.sido, district.sigungu));
+  let matchedArea = exact;
+  let sourceLevel = 'district';
+
+  if (!matchedArea && district.sigungu) {
+    const parentCities = [...facilityAreasByRegion.values()]
+      .filter(area => area.sido === district.sido
+        && area.sigungu.endsWith('시')
+        && district.sigungu.startsWith(area.sigungu + ' '))
+      .sort((a, b) => b.sigungu.length - a.sigungu.length);
+    matchedArea = parentCities[0];
+    if (matchedArea) sourceLevel = 'city';
+  }
+
+  if (matchedArea) {
+    district.facilityPopulation = makeFacilityPopulation(
+      matchedArea.byType,
+      sourceLevel,
+      [matchedArea.sourceAreaName],
+    );
+  } else {
+    district.facilityPopulation = {
+      ...provincesByName.get(district.sido).facilityPopulation,
+      sourceLevel: 'province',
+    };
+    sourceLevel = 'province';
+  }
+  facilityDistrictMatchCounts[sourceLevel]++;
+}
+
+const nationalFacilityTypes = {};
+for (const province of provincesByName.values()) {
+  addFacilityTypes(nationalFacilityTypes, province.facilityPopulation.byType);
+}
+const nationalFacilityPopulation = makeFacilityPopulation(
+  nationalFacilityTypes,
+  'national',
+  [...provincesByName.values()].flatMap(province => province.facilityPopulation.sourceAreaNames),
+);
+const elderlyFacilityTypes = [...facilityTypes]
+  .filter(facilityType => facilityType.includes('노인'))
+  .sort((a, b) => a.localeCompare(b, 'ko'));
+
 for (const province of provincesByName.values()) {
   province.districtCount = [...districtsByKey.values()].filter(district => district.sido === province.sido).length;
 }
@@ -337,6 +474,15 @@ const metadata = {
   resourceEncodingReplacementChars: encodingReplacementCounts.get('data/source/nhis_integrated_care_resources_20260630.csv') ?? 0,
   majorCategoryCount: majorCategories.size,
   minorCategoryCount: minorCategories.size,
+  facilityPopulationAsOf,
+  facilityPopulationRows: facilityPopulationRows.length,
+  facilityPopulationLatestRows: facilityRowsForLatestMonth.length,
+  facilityPopulationSourceAreaCount: facilityAreasBySourceName.size,
+  facilityPopulationTypeCount: facilityTypes.size,
+  elderlyFacilityTypeCount: elderlyFacilityTypes.length,
+  facilityDistrictExactMatches: facilityDistrictMatchCounts.district,
+  facilityDistrictParentCityMatches: facilityDistrictMatchCounts.city,
+  facilityDistrictProvinceFallbacks: facilityDistrictMatchCounts.province,
 };
 
 const data = {
@@ -344,6 +490,8 @@ const data = {
   areas,
   districts,
   provinces,
+  nationalFacilityPopulation,
+  elderlyFacilityTypes,
   boundaries,
   majorCategories: [...majorCategories].sort((a, b) => a.localeCompare(b, 'ko')),
   minorCategories: [...minorCategories].sort((a, b) => a.localeCompare(b, 'ko')),
@@ -352,7 +500,12 @@ const data = {
 const summaryHeaders = [
   'sido', 'sigungu', 'sigungu_code', 'dong_count', 'population', 'elderly_65_plus',
   'elderly_65_plus_rate', 'elderly_single_person_households_65_plus', 'service_resource_rows',
-  'missing_address_rows', 'missing_phone_rows',
+  'missing_address_rows', 'missing_phone_rows', 'facility_population_source_scope',
+  'facility_population_source_area',
+  ...elderlyFacilityTypes.flatMap(facilityType => [
+    'facility_' + facilityType + '_capacity',
+    'facility_' + facilityType + '_residents',
+  ]),
   ...[...majorCategories].sort((a, b) => a.localeCompare(b, 'ko')).map(category => `resource_${category}`),
 ];
 const summaryLines = [summaryHeaders.join(',')];
@@ -369,6 +522,15 @@ for (const district of districts) {
     service_resource_rows: district.resourceRows,
     missing_address_rows: district.missingAddressRows,
     missing_phone_rows: district.missingPhoneRows,
+    facility_population_source_scope: district.facilityPopulation.sourceLevel,
+    facility_population_source_area: district.facilityPopulation.sourceAreaNames.join(' / '),
+    ...Object.fromEntries(elderlyFacilityTypes.flatMap(facilityType => {
+      const stats = district.facilityPopulation.byType[facilityType] ?? { capacity: 0, residents: 0 };
+      return [
+        ['facility_' + facilityType + '_capacity', stats.capacity],
+        ['facility_' + facilityType + '_residents', stats.residents],
+      ];
+    })),
     ...Object.fromEntries([...majorCategories].map(category => [`resource_${category}`, district.resourcesByMajor[category] ?? 0])),
   };
   summaryLines.push(summaryHeaders.map(header => quoteCsv(values[header])).join(','));

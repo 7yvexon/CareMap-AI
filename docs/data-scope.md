@@ -7,6 +7,7 @@
 | MOIS resident population by administrative dong ([source](https://www.data.go.kr/data/15097972/fileData.do)) | Total and age-specific resident counts; calculate age 65+ | 2026-10-31 | Administrative dong | Demographic proxy, not care eligibility or unmet need |
 | MOIS single-person households by administrative dong ([source](https://www.data.go.kr/data/15097973/fileData.do)) | Total and age-specific single-person household counts; calculate age 65+ | 2026-10-31 | Administrative dong | A one-person household is not proof of isolation or care need |
 | NHIS integrated-care service resources ([source](https://www.data.go.kr/data/15173720/fileData.do)) | Searchable service-resource/program rows; aggregate by province, district and category | 2026-06-30 | Province and district names; 90,081 data rows in downloaded CSV | One-time snapshot; rows are not unique institutions or service capacity; some fields are blank |
+| MOHW welfare-facility population by type ([source](https://www.data.go.kr/data/15161046/fileData.do)) | Show elderly-related facility-type admission capacity and facility-resident counts | 2025-12 (latest month in the one-time file) | 245 observed area labels; latest month has 4,230 area-by-type rows and 35 types | Regional aggregates, not dong or facility records; values are not vacancies or current availability; source geography predates the 2026 administrative changes |
 | geoBoundaries/Natural Earth KOR ADM1 ([metadata](https://www.geoboundaries.org/api/current/gbOpen/KOR/ADM1/)) | Province-level map geometry | 2021 | 17 source polygons combined into 16 current data groups | Geography is a simplified map reference, not a current cadastral boundary source |
 | SGIS administrative-dong boundaries, processed by [vuski/admdongkor](https://github.com/vuski/admdongkor/tree/master/ver20261001) | Province drill-down, neighborhood polygons, map zoom and selection | 2026-10-01 | `adm_cd2` 10-digit code; GeoJSON WGS84 | CC BY 4.0; 3,558 of 3,620 population codes match; some branch offices/new units have no matching polygon |
 
@@ -17,6 +18,9 @@
 - Aggregate demographic counts from administrative dong to province and district using the source province/district labels; retain the first five digits of the administrative code as the district code for review.
 - The NHIS resource file has no administrative code. Its province/district names are normalized for whitespace and matched against MOIS names. Every named region in the downloaded file matched an MOIS region. Sejong entries with a blank district name are kept at Sejong’s province-wide level.
 - Preserve the NHIS service category labels. Aggregate row counts by major and minor category. Do not convert resource rows into facility counts.
+- The MOHW file has 50,725 monthly rows. Use only the latest month present (2025-12); the column named 행정동명 contains observed Sido and Sido-plus-city/district labels, not a complete set of administrative dongs. Sum the disjoint source-area rows for province and national totals, including Sido-only residual rows and the 2025 Sejong area. Do not add province totals to their own districts or split a parent-city total among newer child districts.
+- Match MOHW areas by normalized Sido/district labels after mapping 2025 Gwangju and South Jeolla to the current 전남광주통합특별시. Of 256 current district units, 212 have a direct source-area match, 39 use a source parent-city total, and 5 use a province aggregate. The UI identifies these scopes and preserves the source area name; dong selection continues to show its parent-region statistics.
+- Show only the 9 observed facility types containing 노인 in the selected-region panel, with the source fields 입소정원수 and 시설생활자수. Do not sum across facility types or interpret a capacity-minus-residents difference as available places; definitions and reporting coverage vary by type.
 - The NHIS file contains 505 blank addresses and 3,559 blank phone fields. These rates are calculated from the 90,081 data rows.
 - Six NHIS text characters cannot be decoded from the downloaded CSV as `euc-kr`; generated strings use replacement characters, and the raw CSV is preserved unchanged.
 - The portal description states 34 minor categories, while 28 distinct minor categories have records in this CSV. Verify whether the other six categories have no records in this snapshot or were omitted before claiming complete category coverage.
@@ -27,7 +31,7 @@
 
 ## Service search and proposed AI role
 
-The dashboard's service search filters the raw resource rows by the selected province/district and ranks keyword and category matches. It returns the program, provider, contact, address, category, and the matching terms. The current implementation is a deterministic baseline; it does not call a language model and its ranking has not been validated.
+The dashboard's service search filters the raw resource rows nationwide or by a selected province/district and ranks keyword and category matches. It returns the program, provider, contact, address, category, and the matching terms. The current implementation is a deterministic baseline; it does not call a language model and its ranking has not been validated. Dong selection does not narrow this source because it has no dong-level service rows.
 
 The proposed AI design is to extract a user's service need from natural language, map it to the source service taxonomy, retrieve matching records (RAG), and show the source fields that support each candidate. Generated text must not add eligibility or availability claims that are absent from the retrieved source. The current data supports resource discovery, not an individual risk or unmet-need prediction.
 
@@ -59,7 +63,7 @@ Do not report an improvement or model accuracy until these measurements have bee
 
 ## Generated artifacts
 
-`scripts/build-data.mjs` reads the three raw public CSV/GeoJSON files in `data/source/`, validates administrative codes and count reconciliation, merges demographic indicators, aggregates service-resource rows, and generates:
+`scripts/build-data.mjs` reads the raw public CSV/GeoJSON files in `data/source/`, validates administrative codes and count reconciliation, merges demographic indicators, aggregates service-resource and welfare-facility population rows, and generates:
 
 - `data/national_data.js` for the browser
 - `data/national_district_summary.csv` for review and reuse

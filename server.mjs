@@ -118,7 +118,7 @@ for (const feature of boundaryCollection.features ?? []) {
 }
 
 const intentRules = [
-  { terms: ['식사', '반찬', '밥', '영양'], categories: ['식사지원'] },
+  { terms: ['식사', '반찬', '밥', '영양', '도시락', '배달', '급식'], categories: ['식사지원'] },
   { terms: ['복약', '약', '약물'], categories: ['방문복약관리'] },
   { terms: ['진료', '병원', '의사', '간호'], categories: ['방문진료', '방문간호', '건강-돌봄 통합지원'] },
   { terms: ['재활', '걷기', '운동'], categories: ['방문재활'] },
@@ -133,13 +133,23 @@ const intentRules = [
 
 const stopWords = new Set(['어르신', '서비스', '돌봄', '도움', '지원', '찾아줘', '찾고', '찾는', '찾아', '싶어요', '있어요', '필요', '필요해요', '어려워', '어려워요', '준비가', '힘들어', '불편해요', '가능한']);
 
-function searchServiceResources({ query, province, district, category, limit }) {
+function inferCategories(query) {
   const normalizedQuery = normalize(query);
-  const terms = [...new Set((normalizedQuery.match(/[가-힣A-Za-z0-9]{2,}/g) ?? [])
-    .filter(term => !stopWords.has(term)))];
-  const inferredCategories = [...new Set(intentRules
+  const compactQuery = normalizedQuery.replace(/\s+/g, '');
+  const hospitalEscort = /(?:병원|진료|외래).{0,5}(?:동행|같이|함께|데려|모셔)|(?:동행|같이|함께|데려|모셔).{0,5}(?:병원|진료|외래)/.test(normalizedQuery)
+    || ['병원동행', '진료동행', '외래동행'].some(phrase => compactQuery.includes(phrase));
+  if (hospitalEscort) return ['이동지원'];
+  return [...new Set(intentRules
     .filter(rule => rule.terms.some(term => normalizedQuery.includes(term)))
     .flatMap(rule => rule.categories))];
+}
+
+function searchServiceResources({ query, province, district, category, limit }) {
+  const normalizedQuery = normalize(query);
+  const compactQuery = normalizedQuery.replace(/\s+/g, '');
+  const terms = [...new Set((normalizedQuery.match(/[가-힣A-Za-z0-9]{2,}/g) ?? [])
+    .filter(term => !stopWords.has(term)))];
+  const inferredCategories = inferCategories(normalizedQuery);
   const results = [];
   const seen = new Set();
 
@@ -160,7 +170,7 @@ function searchServiceResources({ query, province, district, category, limit }) 
     if (!categoryMatches.length && !matchedTerms.length) continue;
 
     let score = categoryMatches.length * 8;
-    if (normalizedQuery && resource.program.includes(normalizedQuery)) score += 12;
+    if (compactQuery.length >= 2 && resource.program.replace(/\s+/g, '').includes(compactQuery)) score += 16;
     score += matchedTerms.reduce((sum, term) => sum + (resource.program.includes(term) ? 5 : 0)
       + (resource.minor.includes(term) ? 4 : 0)
       + (resource.major.includes(term) ? 2 : 0)
@@ -233,9 +243,7 @@ const server = createServer(async (req, res) => {
     const parsedLimit = Number(url.searchParams.get('limit'));
     const limit = Number.isInteger(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 12)) : 8;
     const results = searchServiceResources({ query, province, district, category, limit });
-    const inferredCategories = [...new Set(intentRules
-      .filter(rule => rule.terms.some(term => query.includes(term)))
-      .flatMap(rule => rule.categories))];
+    const inferredCategories = inferCategories(query);
 
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify({
