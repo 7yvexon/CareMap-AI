@@ -129,6 +129,10 @@ function queryMentionsCategory(query, compactQuery, category) {
   return new RegExp(`(?:^|[\\s,.;:!?])${compactCategory}${suffixes}(?=$|[\\s,.;:!?])`, 'u').test(query);
 }
 
+const integratedCareIntentPattern = /(?:통합\s*돌봄|돌봄\s*통합|(?:(?:건강|보건).{0,12}(?:돌봄|복지)|(?:돌봄|복지).{0,12}(?:건강|보건)).{0,16}(?:통합|함께|같이|연계|연결)|(?:통합|함께|같이|연계|연결).{0,16}(?:(?:건강|보건).{0,12}(?:돌봄|복지)|(?:돌봄|복지).{0,12}(?:건강|보건)))/u;
+const negatedIntegratedCareCategoryPattern = /(?:(?:통합\s*돌봄|돌봄\s*통합|(?:건강|보건).{0,12}(?:돌봄|복지).{0,12}통합(?:지원)?|(?:돌봄|복지).{0,12}(?:건강|보건).{0,12}통합(?:지원)?|통합.{0,12}(?:건강|보건).{0,12}(?:돌봄|복지))(?:은|는|이|가|을|를)?\s*(?:필요.{0,6}(?:없|않)|불필요|원치|원하지\s*않|싫|아니|않|안\s*(?:받|원|하|해|필요|지원|되고|되|싶)|받지\s*않|(?:받|지원|이용|연계|연결|제공)(?:으면|하면)\s*안|제외)|(?:필요.{0,6}(?:없|않)|불필요|원치|원하지\s*않|싫|아니|않|안\s*(?:받|원|하|해|필요|지원|되고|되|싶)|제외)[^.!?,;，。！？\n]{0,6}(?:통합\s*돌봄|돌봄\s*통합|(?:건강|보건).{0,12}(?:돌봄|복지).{0,12}통합(?:지원)?|(?:돌봄|복지).{0,12}(?:건강|보건).{0,12}통합(?:지원)?|통합.{0,12}(?:건강|보건).{0,12}(?:돌봄|복지)))/u;
+const negatedIntegratedCareActionPattern = /(?:(?:함께|같이|연계|연결)[^.!?,;，。！？\n]{0,4}(?:지원|받|연계|연결|제공|이용)(?:\s*안|\s*않|하지\s*(?:않|말|마)|지\s*(?:않|말|마)|(?:으면|하면)\s*안|.{0,2}필요.{0,6}(?:없|않)|.{0,2}원치|.{0,4}원하지\s*않|.{0,4}싫|.{0,5}싶지\s*않|.{0,2}말고)|(?:함께|같이)\s*안\s*(?:지원|받))/u;
+
 const stopWords = new Set(['어르신', '서비스', '돌봄', '도움', '지원', '찾아줘', '찾고', '찾는', '찾아', '싶어요', '있어요', '필요', '필요해요', '어려워', '어려워요', '준비가', '힘들어', '불편해요', '몸이', '가능한']);
 
 function inferCategories(query) {
@@ -143,8 +147,11 @@ function inferCategories(query) {
       .replace(/(?:병원|진료|외래)(.{0,5})(?:동행|같이|함께|데려|모셔)/gu, '$1')
       .replace(/(?:동행|같이|함께|데려|모셔)(.{0,5})(병원|진료|외래)/gu, '$1')
     : normalizedQuery;
+  const negatedIntegratedCare = negatedIntegratedCareCategoryPattern.test(ruleQuery)
+    || negatedIntegratedCareActionPattern.test(ruleQuery);
   const categories = new Set([
-    ...[...allowedIntentCategories].filter(category => queryMentionsCategory(normalizedQuery, compactQuery, category)),
+    ...[...allowedIntentCategories].filter(category => queryMentionsCategory(normalizedQuery, compactQuery, category)
+      && !(category === '건강-돌봄 통합지원' && negatedIntegratedCare)),
     ...intentRules
       .filter(rule => rule.terms.some(term => ruleQuery.includes(term)))
       .flatMap(rule => rule.categories),
@@ -155,7 +162,7 @@ function inferCategories(query) {
   if (/(?:집|댁|가정).{0,8}(?:의사|진료)|(?:의사|진료).{0,8}(?:집|댁|가정)/u.test(ruleQuery)) {
     categories.add('방문진료');
   }
-  if (/(?:통합\s*돌봄|돌봄\s*통합|(?:건강|보건).{0,4}(?:돌봄|복지).{0,4}통합|(?:돌봄|복지).{0,4}(?:건강|보건).{0,4}통합|통합.{0,4}(?:건강|보건).{0,4}(?:돌봄|복지)|통합.{0,4}(?:돌봄|복지).{0,4}(?:건강|보건))/u.test(ruleQuery)) {
+  if (integratedCareIntentPattern.test(ruleQuery) && !negatedIntegratedCare) {
     categories.add('건강-돌봄 통합지원');
   }
   if (hospitalEscort) categories.add('이동지원');
