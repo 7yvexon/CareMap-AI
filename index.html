@@ -118,8 +118,8 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
       <button class="search-example" type="button" data-search-example="방문요양">방문요양</button>
     </div>
     <div class="semantic-search-control"><label for="semanticSearchToggle"><input id="semanticSearchToggle" type="checkbox"> 의미 기반 AI 유형 추천 사용</label><span id="semanticSearchStatus" role="status" aria-live="polite">선택하지 않으면 현재 규칙 기반 검색을 사용합니다.</span></div>
-    <div class="ai-explainer"><strong>AI 검색:</strong> 선택하면 multilingual-e5-small 임베딩 모델이 입력 문장과 사회서비스 유형 설명의 유사한 유형 후보를 찾습니다. 먼저 후보 3개를 보여주며, 맞는 유형을 직접 선택한 뒤 다시 눌러야 해당 유형으로 검색합니다. 범위를 벗어난 질문에도 가까운 유형이 보일 수 있습니다. 첫 사용에는 모델·토크나이저 약 140MB를 내려받고 이후 브라우저 캐시를 사용할 수 있습니다. 입력 문장은 외부 AI 추론 API로 보내지 않으며, 유형 선택 뒤 CareMap 서비스 검색 API로 후보를 찾습니다. 모델 사용에 실패하면 규칙 기반 검색으로 이어집니다. 유사도는 확률·자격·실제 이용 가능 여부가 아닙니다. <a href="https://huggingface.co/intfloat/multilingual-e5-small" target="_blank" rel="noreferrer">모델 출처·라이선스</a></div>
-    <details class="ai-data-scope"><summary>서비스 자료 범위</summary><p>검색 자료는 2026.06.30 기준 90,081건의 서비스 자원 기록 행이며, 고유 기관 수나 현재 이용 가능 수가 아닙니다. 포털 설명의 34개 중분류 중 이 수집본에서 확인되는 유형은 28개이고, 나머지 6개 유형이 보이지 않는 이유는 확인되지 않았습니다. 주소 505건과 연락처 3,559건은 비어 있습니다. 세종의 시군구명 없는 347건은 시도 전체 단위 기록이므로 세부 지역 검색에 반영되지 않을 수 있습니다. 현재 수집 목록에서 결과를 찾지 못해도 해당 지역에 서비스가 없다는 뜻은 아닙니다.</p></details>
+    <div class="ai-explainer"><strong>AI 검색:</strong> 선택하면 multilingual-e5-small 임베딩 모델이 입력 문장과 사회서비스 대·중분류 조합 설명을 비교합니다. 먼저 후보 3개를 보여주며, 맞는 조합을 직접 선택한 뒤 다시 눌러야 선택 pair가 검색 근거에 추가됩니다. 규칙 분류와 입력어 검색도 계속 함께 사용합니다. 범위를 벗어난 질문에도 가까운 조합이 보일 수 있습니다. 첫 사용에는 모델·토크나이저 약 140MB를 내려받고 이후 브라우저 캐시를 사용할 수 있습니다. 입력 문장은 외부 AI 추론 API로 보내지 않으며, 선택 뒤 CareMap 서비스 검색 API로 후보를 찾습니다. 모델이나 유형 목록을 불러오지 못하면 규칙 기반 검색으로 이어집니다. 유사도는 확률·자격·실제 이용 가능 여부가 아닙니다. <a href="https://huggingface.co/intfloat/multilingual-e5-small" target="_blank" rel="noreferrer">모델 출처·라이선스</a></div>
+    <details class="ai-data-scope"><summary>서비스 자료 범위</summary><p>검색 자료는 2026.06.30 기준 90,081건의 서비스 자원 기록 행이며, 고유 기관 수나 현재 이용 가능 수가 아닙니다. 원자료에는 대·중분류 조합 34개와 중분류 고유 표기 28개가 있습니다. 2026 사업안내와 대조하면 32개 조합의 이름이 일치하고 주거 항목 2개의 표기가 다르지만, 분류 버전이나 동의어 관계는 확인되지 않았습니다. 주소 505건과 연락처 3,559건은 비어 있습니다. 세종의 시군구명 없는 347건은 시도 전체 단위 기록이므로 세부 지역 검색에 반영되지 않을 수 있습니다. 현재 수집 목록에서 결과를 찾지 못해도 해당 지역에 서비스가 없다는 뜻은 아닙니다.</p></details>
     <div id="serviceSearchInterpretation" class="search-interpretation" aria-label="검색 해석 근거" hidden></div>
     <div id="serviceSearchStatus" class="search-status" role="status" aria-live="polite">전국 검색이 기본입니다. 시도·시군구를 고르면 검색 범위를 좁힙니다.</div>
     <details id="serviceSearchDiagnostics" class="search-diagnostics" hidden><summary>검색 처리 정보</summary><p id="serviceSearchDiagnosticsText"></p></details>
@@ -179,7 +179,7 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
     <div id="qualitySummary" class="quality-grid"></div>
   </section>
   <section id="elderlyMethod" class="method">
-    <div><h2 class="method-title">AI 검색 적용과 검증 계획</h2><p>기본 검색은 키워드·규칙 기반 기준선입니다. 선택형 의미검색은 브라우저 임베딩으로 가까운 서비스 유형 후보 3개를 보여주고, 사용자가 고른 유형을 검색에 추가합니다. 규칙 분류와 입력어 검색도 함께 실행하며 원자료에서 후보를 찾습니다. 모델은 사회복지 질의로 평가하지 않았습니다.</p><div class="evaluation-note"><strong>검증 계획(아직 수행 전)</strong><br>현장 담당자 질의 사례로 유형 후보·사용자 선택, 검색 후보의 근거 일치율, 수작업 대비 탐색 시간과 기기별 첫 로드·반복 응답 시간을 비교합니다.</div></div>
+    <div><h2 class="method-title">AI 검색 적용과 검증 계획</h2><p>기본 검색은 키워드·규칙 기반 기준선입니다. 선택형 의미검색은 브라우저 임베딩으로 가까운 서비스 대·중분류 조합 후보 3개를 보여주고, 사용자가 고른 조합을 서버의 정확한 pair 검색 근거에 추가합니다. 규칙 분류와 입력어 검색도 함께 실행하며 원자료에서 후보를 찾습니다. 모델은 사회복지 질의로 평가하지 않았고, pair-aware API 흐름은 아직 브라우저에서 검증하지 않았습니다.</p><div class="evaluation-note"><strong>검증 계획(아직 수행 전)</strong><br>현장 담당자 질의 사례로 유형 후보·사용자 선택, 검색 후보의 근거 일치율, 수작업 대비 탐색 시간과 기기별 첫 로드·반복 응답 시간을 비교합니다.</div></div>
     <div class="method-points">
       <div class="method-point">65세 이상 인구와 고령 1인 세대는 지역 지표이지 개인별 돌봄 필요나 위기 판정이 아닙니다.</div>
       <div class="method-point">서비스 행 수는 고유 기관 수·정원·이용 가능 인원과 다르며, 모든 프로그램이 노인 전용은 아닙니다.</div>
@@ -277,7 +277,7 @@ if(!nationalDataReady){
 document.querySelectorAll('.panel-title').forEach(title=>{title.setAttribute('role','heading');title.setAttribute('aria-level','2')});
 let activeServiceSearchScope=null,activeServiceSearchQuery='',serviceSearchRequestId=0,semanticReviewState=null;
 let semanticAttemptSequence=0,activeSemanticAttemptId=0;
-let semanticPipelinePromise=null,semanticPassageVectorsPromise=null;
+let semanticPipelinePromise=null,semanticPassageVectorsPromise=null,semanticPassageVectorsKey='',semanticCategoryPairsPromise=null;
 const semanticModelId='Xenova/multilingual-e5-small';
 const semanticModelRevision='761b726dd34fb83930e26aab4e9ac3899aa1fa78';
 const semanticDescriptions={
@@ -310,7 +310,36 @@ const semanticDescriptions={
  '주야간보호':'낮이나 밤 동안 시설에서 보호와 식사, 활동, 돌봄을 제공하는 서비스',
  '치매전문관리':'치매 진단 이후 기억력 저하와 일상생활을 관리하고 가족을 지원하는 서비스',
 };
-const semanticIntentPassages=DATA.minorCategories.map(name=>({name,text:`passage: ${name}. ${semanticDescriptions[name]||name}`}));
+function semanticCategoryPairKey(pair){return JSON.stringify([pair.major,pair.minor])}
+async function getSemanticCategoryPassages(attemptId){
+ if(!semanticCategoryPairsPromise){
+  let pending;
+  const controller=new AbortController();
+  const timeoutId=setTimeout(()=>controller.abort(),15000);
+  pending=fetch('/api/service-categories',{headers:{Accept:'application/json'},signal:controller.signal})
+   .then(async response=>{
+    const payload=await response.json();
+    if(!response.ok)throw new Error(payload.error||'사회서비스 분류 목록을 불러오지 못했습니다.');
+    if(!Array.isArray(payload.categories))throw new Error('사회서비스 분류 목록 형식이 올바르지 않습니다.');
+    const categories=payload.categories.filter(item=>item&&typeof item.major==='string'&&item.major.trim()&&typeof item.minor==='string'&&item.minor.trim());
+    if(!categories.length)throw new Error('사회서비스 분류 목록이 비어 있습니다.');
+    return categories.map(({major,minor})=>{
+     const pair={major:major.trim(),minor:minor.trim()};
+     return {...pair,key:semanticCategoryPairKey(pair),text:`passage: ${pair.major} 분야의 ${pair.minor}. ${semanticDescriptions[pair.minor]||pair.minor}`};
+    });
+   })
+   .catch(error=>{
+    if(semanticCategoryPairsPromise===pending)semanticCategoryPairsPromise=null;
+    if(controller.signal.aborted){const timeoutError=new Error('사회서비스 분류 목록 요청이 15초 안에 끝나지 않았습니다.');timeoutError.name='SemanticCategoriesError';throw timeoutError}
+    const categoryError=new Error(error.message||'사회서비스 분류 목록을 불러오지 못했습니다.');categoryError.name='SemanticCategoriesError';throw categoryError;
+   })
+   .finally(()=>clearTimeout(timeoutId));
+  semanticCategoryPairsPromise=pending;
+ }
+ const passages=await semanticCategoryPairsPromise;
+ ensureSemanticAttemptActive(attemptId);
+ return passages;
+}
 const modeButtons=[...document.querySelectorAll('[data-view-mode]')];
 const districtById=new Map(DATA.districts.map(d=>[d.districtId,d]));
 const districtByCode=new Map(DATA.districts.map(d=>[String(d.sigunguCode),d]));
@@ -354,13 +383,15 @@ async function getSemanticExtractor(attemptId){
  }
  return semanticPipelinePromise;
 }
-async function getSemanticPassageVectors(extractor){
- if(!semanticPassageVectorsPromise){
+async function getSemanticPassageVectors(extractor,passages){
+ const passageKey=JSON.stringify(passages.map(item=>item.key));
+ if(!semanticPassageVectorsPromise||semanticPassageVectorsKey!==passageKey){
   let pendingVectors;
-  pendingVectors=extractor(semanticIntentPassages.map(item=>item.text),{pooling:'mean',normalize:true})
+  pendingVectors=extractor(passages.map(item=>item.text),{pooling:'mean',normalize:true})
    .then(output=>output.tolist())
-   .catch(error=>{if(semanticPassageVectorsPromise===pendingVectors)semanticPassageVectorsPromise=null;throw error});
+   .catch(error=>{if(semanticPassageVectorsPromise===pendingVectors){semanticPassageVectorsPromise=null;semanticPassageVectorsKey=''}throw error});
   semanticPassageVectorsPromise=pendingVectors;
+  semanticPassageVectorsKey=passageKey;
  }
  return semanticPassageVectorsPromise;
 }
@@ -371,17 +402,19 @@ function ensureSemanticAttemptActive(attemptId){
  throw error;
 }
 async function classifyServiceNeedSemantically(query,attemptId){
- const extractor=await getSemanticExtractor(attemptId);
+ const [extractor,passages]=await Promise.all([getSemanticExtractor(attemptId),getSemanticCategoryPassages(attemptId)]);
  ensureSemanticAttemptActive(attemptId);
  if(activeSemanticAttemptId===attemptId)semanticSearchStatus.textContent='문장과 사회서비스 유형 설명의 의미를 비교하고 있습니다.';
- const categoryVectors=await getSemanticPassageVectors(extractor);
+ const categoryVectors=await getSemanticPassageVectors(extractor,passages);
  ensureSemanticAttemptActive(attemptId);
  const queryOutput=await extractor('query: '+query,{pooling:'mean',normalize:true});
  const queryVector=queryOutput.tolist()[0];
  const ranked=categoryVectors.map((vector,index)=>({
-  name:semanticIntentPassages[index].name,
+  major:passages[index].major,
+  minor:passages[index].minor,
+  key:passages[index].key,
   score:queryVector.reduce((sum,value,dimension)=>sum+value*vector[dimension],0),
- })).sort((a,b)=>b.score-a.score||a.name.localeCompare(b.name,'ko')).slice(0,3);
+ })).sort((a,b)=>b.score-a.score||a.major.localeCompare(b.major,'ko')||a.minor.localeCompare(b.minor,'ko')).slice(0,3);
  if(activeSemanticAttemptId===attemptId)semanticSearchStatus.textContent='의미 유형을 찾았습니다. 유사도는 확률이나 지원 자격을 뜻하지 않습니다.';
  return ranked;
 }
@@ -392,6 +425,7 @@ function withSemanticSearchTimeout(promise,attemptId){
    if(activeSemanticAttemptId===attemptId){
     semanticPipelinePromise=null;
     semanticPassageVectorsPromise=null;
+    semanticPassageVectorsKey='';
    }
    const error=new Error('의미 유형 분석이 제한 시간 안에 끝나지 않았습니다.');
    error.name='SemanticSearchTimeoutError';
@@ -418,29 +452,33 @@ async function fetchServiceResources(url){
   clearTimeout(timeoutId);
  }
 }
-function renderSearchInterpretation(categories,semanticScores=[],{selectable=false,semanticSelectedCategories=[],ruleCategories=[]}={}){
+function selectedSemanticCategoryPairs(state=semanticReviewState){
+ return state?state.scores.filter(item=>state.selected.has(item.key)).map(({major,minor})=>({major,minor})):[];
+}
+function renderSearchInterpretation(categories,semanticScores=[],{selectable=false,semanticSelectedCategoryPairs=[],ruleCategories=[]}={}){
  clearSearchInterpretation();
  const matched=[...new Set(Array.isArray(categories)?categories.filter(value=>typeof value==='string'&&value.trim()):[])];
+ const selectedPairKeys=new Set(semanticSelectedCategoryPairs.map(semanticCategoryPairKey));
  const label=document.createElement('strong');
  label.textContent=semanticScores.length?(selectable?'의미 유사 유형 후보 · 맞는 항목만 선택':'의미 유사 유형 후보'):matched.length?'분류 규칙이 찾은 지원 유형':'지원 유형 분류 없음';
  serviceSearchInterpretation.append(label);
  if(semanticScores.length){
   const tags=document.createElement('span');tags.className='search-intent-tags';
   for(const item of semanticScores){
-   const selected=semanticSelectedCategories.includes(item.name);
+   const selected=selectedPairKeys.has(item.key);
    const tag=document.createElement(selectable?'button':'span');
    if(selectable){
     tag.type='button';tag.classList.add('search-intent-choice');tag.setAttribute('aria-pressed',String(selected));
     tag.addEventListener('click',()=>{
      if(!semanticReviewState||semanticReviewState.scores!==semanticScores)return;
-     if(semanticReviewState.selected.has(item.name))semanticReviewState.selected.delete(item.name);
-     else semanticReviewState.selected.add(item.name);
-     renderSearchInterpretation([],semanticReviewState.scores,{selectable:true,semanticSelectedCategories:[...semanticReviewState.selected]});
+     if(semanticReviewState.selected.has(item.key))semanticReviewState.selected.delete(item.key);
+     else semanticReviewState.selected.add(item.key);
+     renderSearchInterpretation([],semanticReviewState.scores,{selectable:true,semanticSelectedCategoryPairs:selectedSemanticCategoryPairs()});
      updateServiceSearchButtonLabel();
     });
    }else if(selected)tag.classList.add('search-intent-choice');
    tag.classList.add('search-intent-tag');
-   tag.textContent=item.name+' · 유사도 '+item.score.toFixed(3)+(selected&&!selectable?' · 선택됨':'');
+   tag.textContent=item.major+' › '+item.minor+' · 유사도 '+item.score.toFixed(3)+(selected&&!selectable?' · 선택됨':'');
    tags.append(tag);
   }
   serviceSearchInterpretation.append(tags);
@@ -451,7 +489,7 @@ function renderSearchInterpretation(categories,semanticScores=[],{selectable=fal
    serviceSearchInterpretation.append(ruleTags);
   }
   const note=document.createElement('span');
-  note.textContent=selectable?'유형 후보는 문장과의 유사도 순서이며, 범위 밖 질문에도 표시될 수 있습니다. 선택하지 않은 의미 유형은 검색에 사용하지 않습니다.':semanticSelectedCategories.length?'선택된 의미 유형과 규칙·검색어를 함께 검색했습니다. 유사도는 확률·적격 판정이 아니며 실제 이용 가능 여부를 보장하지 않습니다.':'의미 유형은 선택되지 않아 검색에 사용하지 않았습니다. 규칙과 입력어를 기준으로 검색했습니다.';
+  note.textContent=selectable?'대·중분류 조합 후보입니다. 범위 밖 질문에도 후보가 표시될 수 있으며, 선택한 조합만 의미검색에 사용합니다.':semanticSelectedCategoryPairs.length?'선택한 대·중분류 유형과 규칙·검색어를 함께 검색했습니다. 유사도는 확률·적격 판정이 아니며 실제 이용 가능 여부를 보장하지 않습니다.':'의미 유형은 선택되지 않아 검색에 사용하지 않았습니다. 규칙과 입력어를 기준으로 검색했습니다.';
   serviceSearchInterpretation.append(note);
  }else if(matched.length){
   const tags=document.createElement('span');tags.className='search-intent-tags';
@@ -741,7 +779,7 @@ function renderQuality(){
  const items=[
   [fmt(DATA.metadata.resourceProvinceOnlyRows),`전국 시군구명 미기재 · 세종 시도 단위 기록`],
   [fmt(DATA.metadata.resourceEncodingReplacementChars),`전국 원자료에서 복원되지 않은 문자 · 원본 파일 보존`],
-  [fmt(DATA.metadata.minorCategoryCount)+'/34종','전국 관측 중분류 · 6종 미관측, 원인 미확인'],
+  ['34쌍','원자료에서 관측된 대·중분류 조합 · 중분류 고유 표기 28개'],
  ];
  document.getElementById('qualitySummary').innerHTML=items.map(x=>'<div class="quality-card"><strong>'+esc(x[0])+'</strong><span>'+esc(x[1])+'</span></div>').join('');
 }
@@ -755,7 +793,10 @@ function renderServiceResults(results){
   const resultRegion=[resultProvince,resultDistrict?.sigungu].filter(Boolean).join(' ');
   const locateLabel=resultDistrict?'시군구 경계 보기':'시도 범위 보기';
   const locateAction=resultProvince?'<button class="service-result-locate" type="button" data-result-province="'+esc(resultProvince)+'" data-result-district-id="'+esc(resultDistrict?.districtId||'')+'" aria-label="'+esc(resultRegion||resultProvince)+' 행정구역을 지도에서 보기">'+locateLabel+'</button>':'<span class="service-meta">행정구역 정보가 없어 지도 이동을 할 수 없습니다.</span>';
-  const reasons=[...resource.matchedCategories.map(name=>'유형 '+name),...resource.matchedTerms.map(term=>'입력어 '+term)].slice(0,4);
+  const matchedPairs=Array.isArray(resource.matchedCategoryPairs)?resource.matchedCategoryPairs:[];
+  const pairReasons=matchedPairs.map(pair=>'유형 '+pair.major+' › '+pair.minor);
+  const categoryReasons=resource.matchedCategories.filter(name=>!matchedPairs.some(pair=>pair.minor===name)).map(name=>'유형 '+name);
+  const reasons=[...pairReasons,...categoryReasons,...resource.matchedTerms.map(term=>'입력어 '+term)].slice(0,4);
   const phone=resource.phone&&/^[+()0-9 -]+$/.test(resource.phone)?'<a class="service-contact" href="tel:'+esc(resource.phone.replace(/[^+0-9]/g,''))+'">'+esc(resource.phone)+' 전화</a>':`<span class="service-meta">${resource.phone?'연락처: '+esc(resource.phone):'연락처 미기재'}</span>`;
   return '<article class="service-result"><div class="service-tags"><span class="service-tag">후보 '+(index+1)+'</span><span class="service-tag">'+esc(resource.major)+'</span><span class="service-tag">'+esc(resource.minor)+'</span></div><strong>'+esc(title)+'</strong><div class="service-provider">'+esc(resource.provider||'서비스 제공기관명 미기재')+'</div><div class="service-meta">'+esc(location||'주소 미기재')+'</div><div class="service-reason">검색 근거: '+esc(reasons.join(' · ')||'서비스 목록 항목 일치')+'</div><div class="service-result-actions">'+locateAction+phone+'<a class="service-contact" href="https://www.data.go.kr/data/15173720/fileData.do" target="_blank" rel="noreferrer">원자료 출처</a></div></article>';
  }).join('');
@@ -787,7 +828,7 @@ serviceSearchForm.addEventListener('submit',async event=>{
  serviceSearchStatus.textContent=semanticSearchToggle.checked?'입력 문장과 서비스 유형 설명을 비교하고 있습니다.':'공개 서비스 목록에서 후보를 찾고 있습니다.';
  serviceSearchResults.innerHTML='';
  clearSearchInterpretation();
- let semanticScores=[],intentCategories=[],semanticFallbackMessage='';
+ let semanticScores=[],intentCategoryPairs=[],semanticFallbackMessage='';
  try{
   if(semanticSearchToggle.checked){
    const reviewed=semanticReviewState&&semanticReviewState.query===query&&semanticReviewState.scope===activeServiceSearchScope;
@@ -796,7 +837,7 @@ serviceSearchForm.addEventListener('submit',async event=>{
      semanticScores=await withSemanticSearchTimeout(classifyServiceNeedSemantically(query,semanticAttemptId),semanticAttemptId);
      if(requestId!==serviceSearchRequestId)return;
      semanticReviewState={query,scope:activeServiceSearchScope,scores:semanticScores,selected:new Set()};
-     renderSearchInterpretation([],semanticScores,{selectable:true,semanticSelectedCategories:[]});
+     renderSearchInterpretation([],semanticScores,{selectable:true,semanticSelectedCategoryPairs:[]});
      serviceSearchStatus.textContent='의미 유사 유형 후보를 확인하고 맞는 항목을 선택한 뒤 다시 눌러 주세요.';
      return;
     }catch(error){
@@ -804,30 +845,35 @@ serviceSearchForm.addEventListener('submit',async event=>{
      activeSemanticAttemptId=0;
      semanticFallbackMessage=error.name==='SemanticSearchTimeoutError'
       ?' 의미 유형 분석이 지연되어 규칙 기반 검색으로 전환했습니다.'
-      :' AI 모델을 불러오지 못해 규칙 기반 검색으로 전환했습니다.';
+      :error.name==='SemanticCategoriesError'
+       ?' 사회서비스 분류 목록을 불러오지 못해 규칙 기반 검색으로 전환했습니다.'
+       :' AI 모델을 불러오지 못해 규칙 기반 검색으로 전환했습니다.';
      semanticSearchToggle.checked=false;
      activeServiceSearchScope=serviceSearchScopeKey();
      semanticSearchStatus.textContent=error.name==='SemanticSearchTimeoutError'
       ?'의미 유형 분석이 지연되어 AI 추천을 껐습니다. 다음 검색은 규칙 기반으로 진행합니다. 다시 시도하려면 AI 추천을 켜 주세요.'
-      :'AI 모델을 불러오지 못해 추천을 껐습니다. 다음 검색은 규칙 기반으로 진행합니다. 다시 시도하려면 AI 추천을 켜 주세요.';
+      :error.name==='SemanticCategoriesError'
+       ?'사회서비스 유형 목록을 불러오지 못해 AI 추천을 껐습니다. 다음 검색은 규칙 기반으로 진행합니다. 다시 시도하려면 AI 추천을 켜 주세요.'
+       :'AI 모델을 불러오지 못해 추천을 껐습니다. 다음 검색은 규칙 기반으로 진행합니다. 다시 시도하려면 AI 추천을 켜 주세요.';
      updateServiceSearchButtonLabel();
     }
    }else{
     semanticScores=semanticReviewState.scores;
-    intentCategories=[...semanticReviewState.selected];
+    intentCategoryPairs=selectedSemanticCategoryPairs();
    }
   }
   const params=new URLSearchParams({query,limit:'8'});
   if(province)params.set('province',province);
   if(district?.sigungu)params.set('district',district.sigungu);
   if(categoryFilter.value)params.set('category',categoryFilter.value);
-  for(const category of intentCategories)params.append('intent',category);
+  for(const pair of intentCategoryPairs)params.append('intentPair',JSON.stringify(pair));
   const {response,payload}=await fetchServiceResources('/api/resources?'+params.toString());
   if(!response.ok)throw new Error(payload.error||'서비스 목록을 검색하지 못했습니다.');
   if(requestId!==serviceSearchRequestId)return;
   const semanticCategories=Array.isArray(payload.semanticIntentCategories)?payload.semanticIntentCategories:[];
   const ruleCategories=(payload.inferredCategories||[]).filter(name=>!semanticCategories.includes(name));
-  renderSearchInterpretation(semanticScores.length?semanticCategories:payload.inferredCategories,semanticScores,{semanticSelectedCategories:intentCategories,ruleCategories});
+  const semanticIntentCategoryPairs=Array.isArray(payload.semanticIntentCategoryPairs)?payload.semanticIntentCategoryPairs:intentCategoryPairs;
+  renderSearchInterpretation(semanticScores.length?semanticCategories:payload.inferredCategories,semanticScores,{semanticSelectedCategoryPairs:semanticIntentCategoryPairs,ruleCategories});
   renderServiceResults(payload.results);
   const diagnostics=payload.diagnostics;
   const hasDiagnostics=diagnostics

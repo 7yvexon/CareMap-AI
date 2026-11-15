@@ -255,6 +255,13 @@ export async function openServiceCatalog({ sourcePath, databasePath, forceRebuil
 }
 
 function createCatalogHandle(database, metadata, rebuilt) {
+  const categoryPairResults = database.exec(`
+    SELECT DISTINCT major, minor
+    FROM service_resources
+    ORDER BY major COLLATE NOCASE, major, minor COLLATE NOCASE, minor
+  `);
+  const categoryPairs = categoryPairResults[0]?.values.map(([major, minor]) => ({ major, minor })) ?? [];
+
   return {
     database,
     rowCount: Number(metadata.source_row_count),
@@ -262,6 +269,7 @@ function createCatalogHandle(database, metadata, rebuilt) {
     sourceAsOf: metadata.source_as_of,
     rebuilt,
     filterIndexCount: REQUIRED_INDEXES.length,
+    categoryPairs,
     summarizeServiceRecords({ province, district }) {
       const conditions = [];
       const parameters = [];
@@ -297,7 +305,7 @@ function createCatalogHandle(database, metadata, rebuilt) {
         categories,
       };
     },
-    searchCandidates({ province, district, category, inferredCategories, terms }) {
+    searchCandidates({ province, district, category, inferredCategories, intentPairs = [], terms }) {
       const conditions = [];
       const parameters = [];
       if (province) {
@@ -317,6 +325,10 @@ function createCatalogHandle(database, metadata, rebuilt) {
       for (const inferredCategory of inferredCategories) {
         matches.push('(minor = ? OR major = ?)');
         parameters.push(inferredCategory, inferredCategory);
+      }
+      for (const pair of intentPairs) {
+        matches.push('(major = ? AND minor = ?)');
+        parameters.push(pair.major, pair.minor);
       }
       for (const term of terms) {
         matches.push('instr(searchable_text, ?) > 0');

@@ -25,7 +25,7 @@
 - Show only the 9 observed facility types containing 노인 in the selected-region panel, with the source fields 입소정원수 and 시설생활자수. Do not sum across facility types or interpret a capacity-minus-residents difference as available places; definitions and reporting coverage vary by type.
 - The NHIS file contains 505 blank addresses and 3,559 blank phone fields. These rates are calculated from the 90,081 data rows.
 - Six NHIS text characters cannot be decoded from the downloaded CSV as `euc-kr`; generated strings use replacement characters, and the raw CSV is preserved unchanged.
-- The portal describes 34 minor categories; this CSV has 28 distinct nonblank minor-category labels. The raw CSV has zero blank `중분류` rows, and the generated `minorCategories` list contains no `분류 미기재` placeholder. The other six categories are not observed in this snapshot; this does not establish whether they had no records or were omitted upstream.
+- The portal describes 34 “소분류” while the CSV schema calls the field `중분류`. The raw CSV has 28 distinct nonblank minor-category text labels but 34 distinct observed `(대분류, 중분류)` pairs; there are zero blank `중분류` rows, and the generated `minorCategories` list contains no `분류 미기재` placeholder. The 28-to-34 difference is due to repeated labels: `기타` appears under six major classes and `방문간호` under two. It is not evidence that six categories are unobserved.
 - Join detailed administrative-dong geometry to population rows by the exact 10-digit `adm_cd2`/`행정기관코드`; do not infer a dong polygon from the display name.
 - The boundary file has 3,559 features: 3,558 match a population code and one older/unmatched feature remains. Sixty-two population rows have no exact polygon (mostly 출장소). This includes Pyeongtaek 고덕1동 (`4122067000`) and 고덕2동 (`4122068000`), added on 2026-10-12 after the boundary snapshot ([MOIS notice](https://www.mois.go.kr/frt/bbs/type001/commonSelectBoardArticle.do?bbsId=BBSMSTR_000000000052&nttId=130109)); the boundary still has the retired 고덕동 polygon (`4122066000`). Selecting a row without a matching polygon displays the parent 시군구's available polygons and a boundary-coverage notice, not the selected dong's boundary.
 - Official-source review on 2026-11-15 found no verified replacement for the 2026-10-01 boundary. [SGIS's boundary catalog](https://sgis.mods.go.kr/view/pss/openDataIntrcn) lists national administrative-dong SHP only through 2025, at EPSG:5179; [data.go.kr 15129688](https://www.data.go.kr/data/15129688/fileData.do) likewise describes 2025 boundaries. [VWorld's administrative-boundary WFS](https://www.data.go.kr/data/15059008/openapi.do) exposes the `lt_c_ademd_info` layer and declares real-time updates, but its metadata also says January 2025 and was modified 2025-07-01. The current WFS response and inclusion of the 62 codes or new Godeok dongs were not verified because no API key was available. Do not replace the current boundary until returned codes, coordinate transformation, and the 10-digit population-code join are checked.
@@ -34,37 +34,43 @@
 
 ## NHIS resource rows by province (2026-06-30 snapshot)
 
-The table below independently groups the 90,081 data rows in `data/source/nhis_integrated_care_resources_20260630.csv`, decoded as `euc-kr` as in the build. Counts are source service/program rows, not unique institutions: every non-empty data row is counted once, with no deduplication by provider, contact, address, or program. Blank address/contact counts treat empty and whitespace-only values as blank after the same normalization used in the build (replace non-breaking spaces, collapse whitespace, trim). Percentages use that province's row count as the denominator. Observed minor categories count distinct nonblank normalized `중분류` labels in each province. There are zero blank `중분류` rows nationally and in every province, so the table does not count a `분류 미기재` placeholder. The denominator 34 is the portal-described category total; this snapshot has 28 distinct named labels nationally. Row, missing-field, and category totals reconcile with the generated snapshot metadata.
+The table below independently groups the 90,081 data rows in `data/source/nhis_integrated_care_resources_20260630.csv`, decoded as `euc-kr` as in the build. Counts are source service/program rows, not unique institutions: every non-empty data row is counted once, with no deduplication by provider, contact, address, or program. Blank address/contact counts treat empty and whitespace-only values as blank after the same normalization used in the build (replace non-breaking spaces, collapse whitespace, trim). Percentages use that province's row count as the denominator. The category column counts distinct nonblank `(대분류, 중분류)` pairs in each province, not distinct `중분류` text labels. There are zero blank `중분류` rows nationally and in every province, so no `분류 미기재` placeholder is counted. The CSV has 34 distinct observed pairs and 28 distinct `중분류` text labels; repeated labels occur under different major classes. Row and missing-field counts reconcile with generated snapshot metadata; pair counts were independently calculated from the CSV because the generated metadata stores only the 28-label count. Regional pair counts overlap, so their sum is not the national distinct-pair count.
 
 The NHIS source has province and district names but no administrative codes. Names are normalized and matched to `시도명`/`시군구명` in the MOIS 2026-10-31 population file. The code column below is derived from the first two digits of the matched 10-digit `행정기관코드`; district scope uses the first five digits to count current MOIS regional units. This is a derived crosswalk, not a code supplied by NHIS. There were no unmatched province or named-district rows. Region scope means at least one NHIS row was observed for that named district; it does not mean complete provider coverage, data submission rate, service availability, or service presence/absence.
 
-| MOIS code prefix | Province | NHIS rows | Address blank (rows / %) | Contact blank (rows / %) | Observed minor categories / 34 | Named sigungu units observed / current units |
+| MOIS code prefix | Province | NHIS rows | Address blank (rows / %) | Contact blank (rows / %) | Observed major/minor pairs | Named sigungu units observed / current units |
 | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| 11 | 서울특별시 | 15,203 | 8 / 0.05% | 694 / 4.56% | 27 / 34 | 25 / 25 |
-| 12 | 전남광주통합특별시 | 7,924 | 52 / 0.66% | 387 / 4.88% | 26 / 34 | 27 / 27 |
-| 26 | 부산광역시 | 6,002 | 192 / 3.20% | 223 / 3.72% | 27 / 34 | 16 / 16 |
-| 27 | 대구광역시 | 5,285 | 15 / 0.28% | 128 / 2.42% | 24 / 34 | 9 / 9 |
-| 28 | 인천광역시 | 5,201 | 119 / 2.29% | 403 / 7.75% | 25 / 34 | 11 / 11 |
-| 30 | 대전광역시 | 2,881 | 1 / 0.03% | 97 / 3.37% | 21 / 34 | 5 / 5 |
-| 31 | 울산광역시 | 1,450 | 0 / 0.00% | 38 / 2.62% | 20 / 34 | 5 / 5 |
-| 36 | 세종특별자치시 | 347 | 0 / 0.00% | 2 / 0.58% | 19 / 34 | 0 / 1; 347 province-level rows |
-| 41 | 경기도 | 18,939 | 28 / 0.15% | 648 / 3.42% | 28 / 34 | 47 / 47 |
-| 43 | 충청북도 | 3,056 | 7 / 0.23% | 122 / 3.99% | 27 / 34 | 14 / 14 |
-| 44 | 충청남도 | 4,080 | 1 / 0.02% | 122 / 2.99% | 24 / 34 | 16 / 16 |
-| 47 | 경상북도 | 4,997 | 0 / 0.00% | 152 / 3.04% | 24 / 34 | 23 / 23 |
-| 48 | 경상남도 | 6,027 | 71 / 1.18% | 215 / 3.57% | 26 / 34 | 22 / 22 |
-| 50 | 제주특별자치도 | 967 | 1 / 0.10% | 37 / 3.83% | 20 / 34 | 2 / 2 |
-| 51 | 강원특별자치도 | 2,842 | 5 / 0.18% | 100 / 3.52% | 26 / 34 | 18 / 18 |
-| 52 | 전북특별자치도 | 4,880 | 5 / 0.10% | 191 / 3.91% | 23 / 34 | 15 / 15 |
-| **Total** | **16 provinces** | **90,081** | **505 / 0.56%** | **3,559 / 3.95%** | **28 / 34** | **255 / 256 current units** |
+| 11 | 서울특별시 | 15,203 | 8 / 0.05% | 694 / 4.56% | 33 | 25 / 25 |
+| 12 | 전남광주통합특별시 | 7,924 | 52 / 0.66% | 387 / 4.88% | 32 | 27 / 27 |
+| 26 | 부산광역시 | 6,002 | 192 / 3.20% | 223 / 3.72% | 33 | 16 / 16 |
+| 27 | 대구광역시 | 5,285 | 15 / 0.28% | 128 / 2.42% | 30 | 9 / 9 |
+| 28 | 인천광역시 | 5,201 | 119 / 2.29% | 403 / 7.75% | 31 | 11 / 11 |
+| 30 | 대전광역시 | 2,881 | 1 / 0.03% | 97 / 3.37% | 26 | 5 / 5 |
+| 31 | 울산광역시 | 1,450 | 0 / 0.00% | 38 / 2.62% | 25 | 5 / 5 |
+| 36 | 세종특별자치시 | 347 | 0 / 0.00% | 2 / 0.58% | 24 | 0 / 1; 347 province-level rows |
+| 41 | 경기도 | 18,939 | 28 / 0.15% | 648 / 3.42% | 34 | 47 / 47 |
+| 43 | 충청북도 | 3,056 | 7 / 0.23% | 122 / 3.99% | 33 | 14 / 14 |
+| 44 | 충청남도 | 4,080 | 1 / 0.02% | 122 / 2.99% | 30 | 16 / 16 |
+| 47 | 경상북도 | 4,997 | 0 / 0.00% | 152 / 3.04% | 30 | 23 / 23 |
+| 48 | 경상남도 | 6,027 | 71 / 1.18% | 215 / 3.57% | 32 | 22 / 22 |
+| 50 | 제주특별자치도 | 967 | 1 / 0.10% | 37 / 3.83% | 26 | 2 / 2 |
+| 51 | 강원특별자치도 | 2,842 | 5 / 0.18% | 100 / 3.52% | 32 | 18 / 18 |
+| 52 | 전북특별자치도 | 4,880 | 5 / 0.10% | 191 / 3.91% | 29 | 15 / 15 |
+| **Total** | **16 provinces** | **90,081** | **505 / 0.56%** | **3,559 / 3.95%** | **34** | **255 / 256 current units** |
 
 All 255 current district units with a nonblank district name have at least one row in this snapshot. Sejong's 347 rows have a province name but no district name, so they are kept at province level and are not assigned to its single current regional unit. This is observation in one snapshot, not a measure of provider coverage or completeness. The aggregate contains no institution names, contacts, or row-level records.
+
+## Comparison with the official 2026 service classification
+
+The [Public Data Portal dataset description](https://www.data.go.kr/data/15173720/fileData.do) says the source covers 34 “소분류” across six major classes, while the CSV schema names the field `중분류`. For a reproducible comparison, decode the downloaded CSV as `euc-kr`, normalize Unicode and whitespace in category labels, preserve punctuation, and count distinct `(대분류, 중분류)` pairs. The 90,081 data rows contain 34 distinct source pairs and 28 distinct nonblank `중분류` strings. The latter count is lower because `기타` appears under six major classes and `방문간호` under two; it does not mean six pair categories are absent. Each source pair occurs in at least one province; the per-province counts above use this source pair key.
+
+The comparison reference is the Ministry of Health and Welfare/Central Social Service Agency publication [2026 의료·요양 통합돌봄 사업 안내](https://www.kcpass.or.kr/fileDownload?fileDownType=C&fileId=2&paramMenuId=MENU002030701000000&titleId=CBzLGybkce), listed on the [Ministry of Health and Welfare guide page](https://www.mohw.go.kr/menu.es?mid=a10716100000). Its “참고: 개인별지원계획서 내 서비스 내용 분류” table is printed on pp. 74–75. Removing table enumerator suffixes and normalizing Unicode/whitespace yields 32 exact pair-label matches out of 34. The two remaining housing-major label differences are guide `주거안전지원` vs CSV `주거공간개선`, and guide `주거지원` vs CSV `주거지지원`. No official crosswalk was found to establish these as synonyms. The guide’s taxonomy version could not be confirmed as identical to the 2026-06-30 CSV snapshot; therefore this is a comparison to the 2026 guide, not proof that the CSV omitted or renamed categories upstream.
 
 ## Service search and AI role
 
 The dashboard's baseline service search filters the raw resource rows nationwide or by a selected province/district and ranks keyword and category matches. It returns source program, provider, contact, address, category, and matching terms. Dong selection does not narrow this source because it has no dong-level service rows.
 
-An optional browser-based semantic mode compares the input sentence with descriptions of the 28 observed minor categories using `multilingual-e5-small` ONNX embeddings. It shows the three closest categories as candidates; the user must select any categories to include before the follow-up search. The selected categories are combined with the deterministic keyword and rule baseline to retrieve source rows. If the model cannot load, the search continues with the baseline. The model is not fine-tuned or evaluated for social-welfare requests, always returns closest categories even for out-of-domain questions, and does not assess eligibility, urgency, risk, demand, or availability. Similarity scores are not probabilities. The user still needs to verify a candidate with its provider.
+An optional browser-based semantic mode fetches distinct `(대분류, 중분류)` pairs from `/api/service-categories` and compares the input sentence with pair-aware passages using `multilingual-e5-small` ONNX embeddings. The major-class name is included in each passage, while the short explanatory text is keyed by the minor label; generic labels such as `기타` may still have little pair-specific meaning. It shows the three closest pairs as candidates. The user selects pairs to send as repeated `intentPair` values to `/api/resources`, where they are matched against the exact major/minor pair. Deterministic keyword and rule-based candidates remain active alongside the selected pair. If the category list or model cannot load, the search continues with the baseline. The model is not fine-tuned or evaluated for social-welfare requests, always returns closest candidates even for out-of-domain questions, and does not assess eligibility, urgency, risk, demand, or availability. Similarity scores are not probabilities. The user still needs to verify a candidate with its provider. The new pair-aware path has not been runtime-tested in a browser.
 
 The selected-region category panel loads `/api/service-summary` from the SQLite catalog and groups source program/resource rows by their original major category. If the API is unavailable, it falls back to the generated regional summary. These are record counts, not distinct institutions, service capacity, or current availability; the panel uses the whole category breakdown even when a category filter is selected.
 

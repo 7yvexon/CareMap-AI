@@ -28,6 +28,22 @@ function normalize(value) {
   return String(value ?? '').replaceAll('\u00a0', ' ').replace(/\s+/g, ' ').trim();
 }
 
+function parseIntentPair(value) {
+  let parsed;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)
+    || typeof parsed.major !== 'string' || typeof parsed.minor !== 'string') return null;
+  const major = normalize(parsed.major);
+  const minor = normalize(parsed.minor);
+  return major && minor ? { major, minor } : null;
+}
+
+const intentPairKey = pair => JSON.stringify([pair.major, pair.minor]);
+
 function sendJsonError(res, message) {
   res.writeHead(400, {
     'Content-Type': 'application/json; charset=utf-8',
@@ -61,6 +77,7 @@ const expectedDistrictCodeSetReady = Number.isInteger(expectedDistrictCount)
   && expectedDistrictCodes.size === expectedDistrictCount
   && nationalDistricts.every(district => /^\d{5}$/.test(normalize(district.sigunguCode)));
 const allowedIntentCategories = new Set(nationalData.minorCategories.map(normalize).filter(Boolean));
+const allowedIntentCategoryPairs = new Set(serviceCatalog.categoryPairs.map(intentPairKey));
 const compactRegionName = value => normalize(value).replace(/\s+/g, '');
 const boundariesByProvince = new Map();
 const boundariesByDistrict = new Map();
@@ -173,7 +190,7 @@ function inferCategories(query) {
   return [...categories];
 }
 
-function searchServiceResources({ query, province, district, category, limit, intentCategories = [] }) {
+function searchServiceResources({ query, province, district, category, limit, intentCategories = [], intentPairs = [] }) {
   const normalizedQuery = normalize(query);
   const compactQuery = normalizedQuery.replace(/\s+/g, '');
   const terms = [...new Set((normalizedQuery.match(/[가-힣A-Za-z0-9]{2,}/g) ?? [])
@@ -182,9 +199,10 @@ function searchServiceResources({ query, province, district, category, limit, in
   const results = [];
   const seen = new Set();
 
-  const candidates = serviceCatalog.searchCandidates({ province, district, category, inferredCategories, terms });
+  const candidates = serviceCatalog.searchCandidates({ province, district, category, inferredCategories, intentPairs, terms });
   for (const resource of candidates) {
     const categoryMatches = inferredCategories.filter(name => resource.minor === name || resource.major === name);
+    const matchedCategoryPairs = intentPairs.filter(pair => resource.major === pair.major && resource.minor === pair.minor);
     const textFields = {
       program: resource.program,
       minor: resource.minor,
@@ -193,9 +211,9 @@ function searchServiceResources({ query, province, district, category, limit, in
       address: resource.address,
     };
     const matchedTerms = terms.filter(term => Object.values(textFields).some(value => value.includes(term)));
-    if (!categoryMatches.length && !matchedTerms.length) continue;
+    if (!categoryMatches.length && !matchedCategoryPairs.length && !matchedTerms.length) continue;
 
-    let score = categoryMatches.length * 8;
+    let score = (categoryMatches.length + matchedCategoryPairs.length) * 8;
     if (compactQuery.length >= 2 && resource.program.replace(/\s+/g, '').includes(compactQuery)) score += 16;
     score += matchedTerms.reduce((sum, term) => sum + (resource.program.includes(term) ? 5 : 0)
       + (resource.minor.includes(term) ? 4 : 0)
@@ -209,6 +227,7 @@ function searchServiceResources({ query, province, district, category, limit, in
     results.push({
       ...resource,
       matchedCategories: categoryMatches,
+      matchedCategoryPairs,
       matchedTerms,
       score,
     });
@@ -368,6 +387,25 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (pathname === '/api/service-categories') {
+    if (!serviceCatalog.categoryPairs.length) {
+      res.writeHead(503, {
+        'Content-Type': 'application/json; charset=utf-8',
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+      });
+      res.end(JSON.stringify({ error: '서비스 대·중분류 목록을 사용할 수 없습니다.', categories: [] }));
+      return;
+    }
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    res.end(JSON.stringify({ categories: serviceCatalog.categoryPairs }));
+    return;
+  }
+
   if (pathname === '/api/resources') {
     const url = new URL(req.url, 'http://127.0.0.1');
     const query = normalize(url.searchParams.get('query'));
@@ -384,6 +422,7 @@ const server = createServer(async (req, res) => {
     const district = normalize(url.searchParams.get('district'));
     const category = normalize(url.searchParams.get('category'));
     const requestedIntentCategories = url.searchParams.getAll('intent').map(normalize);
+    const requestedIntentPairValues = url.searchParams.getAll('intentPair');
     if (province.length > 60 || district.length > 60 || category.length > 60) {
       sendJsonError(res, '지역과 분류 값은 각각 60자 이하로 입력해 주세요.');
       return;
@@ -397,12 +436,22 @@ const server = createServer(async (req, res) => {
       sendJsonError(res, '의미 검색 유형은 제공되는 서비스 중분류에서 최대 3개까지 선택할 수 있습니다.');
       return;
     }
+    if (requestedIntentPairValues.length > 3) {
+      sendJsonError(res, '의미 검색 대·중분류 쌍은 카탈로그에 있는 조합에서 최대 3개까지 선택할 수 있습니다.');
+      return;
+    }
+    const requestedIntentPairs = requestedIntentPairValues.map(parseIntentPair);
+    if (requestedIntentPairs.some(pair => !pair || !allowedIntentCategoryPairs.has(intentPairKey(pair)))) {
+      sendJsonError(res, '의미 검색 대·중분류 쌍은 카탈로그에 있는 조합에서 최대 3개까지 선택할 수 있습니다.');
+      return;
+    }
     const intentCategories = [...new Set(requestedIntentCategories)];
+    const intentPairs = [...new Map(requestedIntentPairs.map(pair => [intentPairKey(pair), pair])).values()];
     const rawLimit = url.searchParams.get('limit');
     const parsedLimit = rawLimit === null || normalize(rawLimit) === '' ? 8 : Number(rawLimit);
     const limit = Number.isInteger(parsedLimit) ? Math.max(1, Math.min(parsedLimit, 12)) : 8;
     const searchStartedAt = process.hrtime.bigint();
-    const search = searchServiceResources({ query, province, district, category, limit, intentCategories });
+    const search = searchServiceResources({ query, province, district, category, limit, intentCategories, intentPairs });
     const processingMs = Number(process.hrtime.bigint() - searchStartedAt) / 1_000_000;
     const inferredCategories = [...new Set([...inferCategories(query), ...intentCategories])];
 
@@ -410,10 +459,13 @@ const server = createServer(async (req, res) => {
     res.end(JSON.stringify({
       asOf: serviceResourcesAsOf,
       sourceRows: resourceRowCount,
-      searchMethod: intentCategories.length
-        ? '사용자 선택 의미 유형과 규칙·키워드 후보 검색'
-        : '규칙 기반 키워드·서비스 유형 후보 검색',
+      searchMethod: intentPairs.length
+        ? '사용자 선택 대·중분류 의미 유형과 규칙·키워드 후보 검색'
+        : intentCategories.length
+          ? '사용자 선택 의미 유형과 규칙·키워드 후보 검색'
+          : '규칙 기반 키워드·서비스 유형 후보 검색',
       semanticIntentCategories: intentCategories,
+      semanticIntentCategoryPairs: intentPairs,
       inferredCategories,
       diagnostics: {
         candidateCount: search.candidateCount,
