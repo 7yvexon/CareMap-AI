@@ -39,6 +39,10 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
 @media(max-width:1050px){.kpis{grid-template-columns:repeat(3,1fr)}}
 @media(max-width:1050px){.source-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:650px){.kpis{grid-template-columns:repeat(2,1fr)}.source-grid{grid-template-columns:1fr}}
+.service-result-group{grid-column:1/-1;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.service-result-group h3{grid-column:1/-1;margin:8px 0 0;font-size:12px;color:#445d63}
+.service-result-group p{grid-column:1/-1;margin:-5px 0 2px;font-size:12px;line-height:1.6;color:#445d63}
+@media(max-width:650px){.service-result-group{grid-template-columns:1fr}}
 </style>
 <style>
 .mode-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#fff;border:1px solid var(--line);border-radius:13px;padding:9px 12px;margin:14px 0 10px}.mode-label{font-size:11px;font-weight:800;color:#60747a;margin:0 4px 0 2px}.mode-button{border:1px solid transparent;background:#f2f6f4;color:#536a70;border-radius:9px;padding:8px 12px;font:inherit;font-size:11px;font-weight:800;cursor:pointer}.mode-button:hover{background:#e8f1ee}.mode-button[aria-pressed="true"]{background:#e0f3ee;border-color:#b9ddd3;color:#176c67;box-shadow:inset 0 0 0 1px #d3ebe4}.mode-status{margin-left:auto;color:#819094;font-size:10px}.child-overview{margin:12px 0 15px;padding:16px 18px;border-color:#dfe8f1}.child-overview-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:12px 0}.child-metric{border:1px solid #e8edf2;background:#f8fafc;border-radius:10px;padding:10px 12px}.child-metric span{display:block;font-size:10px;color:#788791}.child-metric strong{display:block;margin-top:3px;color:#334d5e;font-size:17px}.child-caveat,.child-warning{font-size:10px;line-height:1.65;color:#667780}.child-caveat{margin:8px 0 0;padding:10px 12px;border-radius:9px;background:#f2f6fa}.child-warning{padding:9px 10px;border-radius:8px;background:#fff8ea;color:#78643a;margin:9px 0 0}.coverage-status{font-size:12px;font-weight:800;color:#344f5d;line-height:1.7}.coverage-sub{font-size:10px;color:#788791;line-height:1.65;margin-top:5px}.child-mode [data-elderly-only]{display:none!important}.child-mode .map-legend{min-width:160px}.child-mode .kpi:nth-child(3):after{background:#e7edfb}.child-mode .kpi:nth-child(4):after{background:#f0e8fa}
@@ -179,7 +183,7 @@ main{max-width:1440px;margin:0 auto;padding:28px 26px 52px}.eyebrow{color:var(--
     <div id="qualitySummary" class="quality-grid"></div>
   </section>
   <section id="elderlyMethod" class="method">
-    <div><h2 class="method-title">AI 검색 적용과 검증 계획</h2><p>기본 검색은 키워드·규칙 기반 기준선입니다. 선택형 의미검색은 브라우저 임베딩으로 가까운 서비스 대·중분류 조합 후보 3개를 보여주고, 사용자가 고른 조합을 서버의 정확한 pair 검색 근거에 추가합니다. 규칙 분류와 입력어 검색도 함께 실행하며 원자료에서 후보를 찾습니다. 모델은 사회복지 질의로 평가하지 않았습니다. 대·중분류 쌍 검색 API는 수동 점검했지만, 실제 모델 추천부터 사용자의 조합 선택과 브라우저 검색 결과까지의 흐름은 아직 검증하지 않았습니다.</p><div class="evaluation-note"><strong>검증 계획(아직 수행 전)</strong><br>현장 담당자 질의 사례로 유형 후보·사용자 선택, 검색 후보의 근거 일치율, 수작업 대비 탐색 시간과 기기별 첫 로드·반복 응답 시간을 비교합니다.</div></div>
+    <div><h2 class="method-title">AI 검색 적용과 검증 계획</h2><p>기본 검색은 키워드·규칙 기반 기준선입니다. 선택형 의미검색은 브라우저 임베딩으로 가까운 서비스 대·중분류 조합 후보 3개를 보여주고, 사용자가 고른 조합을 서버의 정확한 pair 검색 근거에 추가합니다. 규칙 분류와 입력어 검색도 함께 실행하며 원자료에서 후보를 찾습니다. 모델의 사회복지 질의 성능은 평가하지 않았습니다. 2026-11-15 로컬 Chrome에서 합성 질의 하나로 첫 모델 다운로드부터 추천·사용자 선택·후보 검색까지 확인했으며, 이는 기능 흐름 확인이지 정확도나 적합도 평가가 아닙니다.</p><div class="evaluation-note"><strong>검증 계획(아직 수행 전)</strong><br>현장 담당자 질의 사례로 유형 후보·사용자 선택, 검색 후보의 근거 일치율, 수작업 대비 탐색 시간과 기기별 첫 로드·반복 응답 시간을 비교합니다.</div></div>
     <div class="method-points">
       <div class="method-point">65세 이상 인구와 고령 1인 세대는 지역 지표이지 개인별 돌봄 필요나 위기 판정이 아닙니다.</div>
       <div class="method-point">서비스 행 수는 고유 기관 수·정원·이용 가능 인원과 다르며, 모든 프로그램이 노인 전용은 아닙니다.</div>
@@ -785,7 +789,9 @@ function renderQuality(){
 }
 function renderServiceResults(results){
  if(!results.length){serviceSearchResults.innerHTML='';return}
- serviceSearchResults.innerHTML=results.map((resource,index)=>{
+ const categoryMatches=results.filter(resource=>(resource.matchedCategoryPairs?.length||0)>0||(resource.matchedCategories?.length||0)>0);
+ const keywordMatches=results.filter(resource=>!categoryMatches.includes(resource));
+ const renderCard=(resource,index,label)=>{
   const title=resource.program||resource.provider||'프로그램명 미기재';
   const location=[resource.sido,resource.sigungu,resource.address].filter(Boolean).join(' ');
   const resultProvince=provinceByName.has(resource.sido)?resource.sido:'';
@@ -798,8 +804,14 @@ function renderServiceResults(results){
   const categoryReasons=resource.matchedCategories.filter(name=>!matchedPairs.some(pair=>pair.minor===name)).map(name=>'유형 '+name);
   const reasons=[...pairReasons,...categoryReasons,...resource.matchedTerms.map(term=>'입력어 '+term)].slice(0,4);
   const phone=resource.phone&&/^[+()0-9 -]+$/.test(resource.phone)?'<a class="service-contact" href="tel:'+esc(resource.phone.replace(/[^+0-9]/g,''))+'">'+esc(resource.phone)+' 전화</a>':`<span class="service-meta">${resource.phone?'연락처: '+esc(resource.phone):'연락처 미기재'}</span>`;
-  return '<article class="service-result"><div class="service-tags"><span class="service-tag">후보 '+(index+1)+'</span><span class="service-tag">'+esc(resource.major)+'</span><span class="service-tag">'+esc(resource.minor)+'</span></div><strong>'+esc(title)+'</strong><div class="service-provider">'+esc(resource.provider||'서비스 제공기관명 미기재')+'</div><div class="service-meta">'+esc(location||'주소 미기재')+'</div><div class="service-reason">검색 근거: '+esc(reasons.join(' · ')||'서비스 목록 항목 일치')+'</div><div class="service-result-actions">'+locateAction+phone+'<a class="service-contact" href="https://www.data.go.kr/data/15173720/fileData.do" target="_blank" rel="noreferrer">원자료 출처</a></div></article>';
- }).join('');
+  return '<article class="service-result"><div class="service-tags"><span class="service-tag">'+esc(label)+' '+(index+1)+'</span><span class="service-tag">'+esc(resource.major)+'</span><span class="service-tag">'+esc(resource.minor)+'</span></div><strong>'+esc(title)+'</strong><div class="service-provider">'+esc(resource.provider||'서비스 제공기관명 미기재')+'</div><div class="service-meta">'+esc(location||'주소 미기재')+'</div><div class="service-reason">검색 근거: '+esc(reasons.join(' · ')||'서비스 목록 항목 일치')+'</div><div class="service-result-actions">'+locateAction+phone+'<a class="service-contact" href="https://www.data.go.kr/data/15173720/fileData.do" target="_blank" rel="noreferrer">원자료 출처</a></div></article>';
+ };
+ const renderGroup=(title,items,label,description='')=>items.length
+  ?'<section class="service-result-group" aria-label="'+esc(title)+'"><h3>'+esc(title)+' ('+items.length+')</h3>'+(description?'<p>'+esc(description)+'</p>':'')+items.map((resource,index)=>renderCard(resource,index,label)).join('')+'</section>'
+  :'';
+ const keywordDescription='입력어가 프로그램명·기관명·주소·분류명 중 하나에 포함되어 추가된 후보입니다. 선택한 지역·대분류 범위는 적용되지만, 규칙 분류나 선택한 대·중분류 쌍은 이 후보의 일치 근거에 포함되지 않았습니다. 입력어 일치만으로 필요한 도움과의 적합성이 확인되는 것은 아닙니다.';
+ serviceSearchResults.innerHTML=renderGroup('분류에 맞는 후보',categoryMatches,'분류 후보')
+  +renderGroup('입력어로 찾은 추가 후보',keywordMatches,'입력어 후보',keywordDescription);
  document.querySelectorAll('#serviceSearchResults [data-result-province]').forEach(button=>button.addEventListener('click',()=>{
   const province=button.dataset.resultProvince;
   if(!provinceByName.has(province))return;
