@@ -37,8 +37,12 @@ function sendJsonError(res, message) {
   res.end(JSON.stringify({ error: message }));
 }
 
+console.log('Preparing SQLite service catalog...');
+const serviceCatalogStartedAt = performance.now();
 const serviceCatalog = await openServiceCatalog({ sourcePath: resourcePath, databasePath: catalogPath });
 const resourceRowCount = serviceCatalog.rowCount;
+const serviceCatalogElapsedMs = Math.round(performance.now() - serviceCatalogStartedAt);
+console.log(`Service catalog ${serviceCatalog.rebuilt ? 'rebuilt' : 'loaded'}: ${resourceRowCount} rows in ${serviceCatalogElapsedMs} ms`);
 
 const boundaryPath = join(root, 'data/source/admin_dong_boundaries_20261001.geojson.gz');
 const boundaryCollection = JSON.parse(gunzipSync(await readFile(boundaryPath)).toString('utf8'));
@@ -444,6 +448,19 @@ const server = createServer(async (req, res) => {
 });
 
 const port = Number(process.env.PORT || 8765);
+server.on('error', error => {
+  if (server.listening) {
+    console.error('CareMap AI server error:', error.message);
+    return;
+  }
+  if (error.code === 'EADDRINUSE') {
+    console.error(`CareMap AI could not start because port ${port} is already in use. Use the running server or set PORT to another port before running npm start (PowerShell: $env:PORT='8766'; npm start).`);
+  } else {
+    console.error(`CareMap AI could not listen on port ${port}:`, error.message);
+  }
+  serviceCatalog.database.close();
+  process.exitCode = 1;
+});
 server.listen(port, '127.0.0.1', () => {
   console.log(`CareMap AI: http://127.0.0.1:${port} (${resourceRowCount} resources, ${boundariesByDongCode.size} dong boundaries indexed)`);
 });
