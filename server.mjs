@@ -406,6 +406,30 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (pathname === '/api/infer-categories') {
+    const url = new URL(req.url, 'http://127.0.0.1');
+    const query = normalize(url.searchParams.get('query'));
+    if (query.length > 150) {
+      sendJsonError(res, '검색어는 150자 이하로 입력해 주세요.');
+      return;
+    }
+    if (query.length < 2) {
+      sendJsonError(res, '필요한 도움을 두 글자 이상 입력해 주세요.');
+      return;
+    }
+
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Content-Type-Options': 'nosniff',
+    });
+    const categories = inferCategories(query);
+    const inferredCategorySet = new Set(categories);
+    const categoryPairs = serviceCatalog.categoryPairs.filter(pair => inferredCategorySet.has(pair.minor));
+    res.end(JSON.stringify({ categories, categoryPairs }));
+    return;
+  }
+
   if (pathname === '/api/resources') {
     const url = new URL(req.url, 'http://127.0.0.1');
     const query = normalize(url.searchParams.get('query'));

@@ -387,6 +387,23 @@ async function getSemanticExtractor(attemptId){
  }
  return semanticPipelinePromise;
 }
+async function getRuleIntentCategories(query,attemptId){
+ const controller=new AbortController();
+ const timeoutId=setTimeout(()=>controller.abort(),8000);
+ try{
+  const response=await fetch('/api/infer-categories?query='+encodeURIComponent(query),{headers:{Accept:'application/json'},signal:controller.signal});
+  const payload=await response.json();
+  ensureSemanticAttemptActive(attemptId);
+  if(!response.ok||!Array.isArray(payload.categories)||!Array.isArray(payload.categoryPairs))return {categories:[],categoryPairs:[],available:false};
+  const categories=[...new Set(payload.categories.filter(value=>typeof value==='string'&&value.trim()))];
+  const categoryPairs=payload.categoryPairs.filter(pair=>pair&&typeof pair.major==='string'&&pair.major.trim()&&typeof pair.minor==='string'&&pair.minor.trim());
+  return {categories,categoryPairs,available:true};
+ }catch{
+  return {categories:[],categoryPairs:[],available:false};
+ }finally{
+  clearTimeout(timeoutId);
+ }
+}
 async function getSemanticPassageVectors(extractor,passages){
  const passageKey=JSON.stringify(passages.map(item=>item.key));
  if(!semanticPassageVectorsPromise||semanticPassageVectorsKey!==passageKey){
@@ -406,7 +423,7 @@ function ensureSemanticAttemptActive(attemptId){
  throw error;
 }
 async function classifyServiceNeedSemantically(query,attemptId){
- const [extractor,passages]=await Promise.all([getSemanticExtractor(attemptId),getSemanticCategoryPassages(attemptId)]);
+ const [extractor,passages,ruleInference]=await Promise.all([getSemanticExtractor(attemptId),getSemanticCategoryPassages(attemptId),getRuleIntentCategories(query,attemptId)]);
  ensureSemanticAttemptActive(attemptId);
  if(activeSemanticAttemptId===attemptId)semanticSearchStatus.textContent='문장과 사회서비스 유형 설명의 의미를 비교하고 있습니다.';
  const categoryVectors=await getSemanticPassageVectors(extractor,passages);
@@ -420,7 +437,7 @@ async function classifyServiceNeedSemantically(query,attemptId){
   score:queryVector.reduce((sum,value,dimension)=>sum+value*vector[dimension],0),
  })).sort((a,b)=>b.score-a.score||a.major.localeCompare(b.major,'ko')||a.minor.localeCompare(b.minor,'ko')).slice(0,3);
  if(activeSemanticAttemptId===attemptId)semanticSearchStatus.textContent='의미 유형을 찾았습니다. 유사도는 확률이나 지원 자격을 뜻하지 않습니다.';
- return ranked;
+ return {scores:ranked,ruleCategories:ruleInference.categories,ruleCategoryPairs:ruleInference.categoryPairs,ruleInferenceAvailable:ruleInference.available};
 }
 function withSemanticSearchTimeout(promise,attemptId){
  let timeoutId;
@@ -459,12 +476,12 @@ async function fetchServiceResources(url){
 function selectedSemanticCategoryPairs(state=semanticReviewState){
  return state?state.scores.filter(item=>state.selected.has(item.key)).map(({major,minor})=>({major,minor})):[];
 }
-function renderSearchInterpretation(categories,semanticScores=[],{selectable=false,semanticSelectedCategoryPairs=[],ruleCategories=[]}={}){
+function renderSearchInterpretation(categories,semanticScores=[],{selectable=false,semanticSelectedCategoryPairs=[],ruleCategories=[],ruleCategoryPairs=[],showRuleCategories=false,ruleInferenceAvailable=true}={}){
  clearSearchInterpretation();
  const matched=[...new Set(Array.isArray(categories)?categories.filter(value=>typeof value==='string'&&value.trim()):[])];
  const selectedPairKeys=new Set(semanticSelectedCategoryPairs.map(semanticCategoryPairKey));
  const label=document.createElement('strong');
- label.textContent=semanticScores.length?(selectable?'의미 유사 유형 후보 · 맞는 항목만 선택':'의미 유사 유형 후보'):matched.length?'분류 규칙이 찾은 지원 유형':'지원 유형 분류 없음';
+ label.textContent=semanticScores.length?(selectable?'의미 유사 유형 후보 · 맞는 항목만 선택':'의미 유사 유형 후보'):matched.length?'분류 규칙이 찾은 지원 유형':'입력어에 맞는 규칙 유형 없음';
  serviceSearchInterpretation.append(label);
  if(semanticScores.length){
   const tags=document.createElement('span');tags.className='search-intent-tags';
@@ -477,7 +494,7 @@ function renderSearchInterpretation(categories,semanticScores=[],{selectable=fal
      if(!semanticReviewState||semanticReviewState.scores!==semanticScores)return;
      if(semanticReviewState.selected.has(item.key))semanticReviewState.selected.delete(item.key);
      else semanticReviewState.selected.add(item.key);
-     renderSearchInterpretation([],semanticReviewState.scores,{selectable:true,semanticSelectedCategoryPairs:selectedSemanticCategoryPairs()});
+     renderSearchInterpretation([],semanticReviewState.scores,{selectable:true,semanticSelectedCategoryPairs:selectedSemanticCategoryPairs(),ruleCategories:semanticReviewState.ruleCategories,ruleCategoryPairs:semanticReviewState.ruleCategoryPairs,showRuleCategories:true,ruleInferenceAvailable:semanticReviewState.ruleInferenceAvailable});
      updateServiceSearchButtonLabel();
     });
    }else if(selected)tag.classList.add('search-intent-choice');
@@ -486,14 +503,24 @@ function renderSearchInterpretation(categories,semanticScores=[],{selectable=fal
    tags.append(tag);
   }
   serviceSearchInterpretation.append(tags);
-  if(ruleCategories.length){
-   const ruleLabel=document.createElement('strong');ruleLabel.textContent='규칙이 찾은 유형';serviceSearchInterpretation.append(ruleLabel);
-   const ruleTags=document.createElement('span');ruleTags.className='search-intent-tags';
-   for(const value of ruleCategories){const tag=document.createElement('span');tag.className='search-intent-tag';tag.textContent=value;ruleTags.append(tag)}
-   serviceSearchInterpretation.append(ruleTags);
+  if(showRuleCategories||ruleCategories.length){
+   const ruleLabel=document.createElement('strong');ruleLabel.textContent=showRuleCategories?'규칙 기반 중분류와 카탈로그 조합 (참고)':'규칙 기반 검색 후보 (참고)';serviceSearchInterpretation.append(ruleLabel);
+   if(!ruleInferenceAvailable){
+    const unavailable=document.createElement('span');unavailable.textContent='불러오지 못했습니다.';serviceSearchInterpretation.append(unavailable);
+   }else if(ruleCategoryPairs.length){
+    const ruleTags=document.createElement('span');ruleTags.className='search-intent-tags';
+    for(const pair of ruleCategoryPairs){const tag=document.createElement('span');tag.className='search-intent-tag';tag.textContent=pair.major+' › '+pair.minor;ruleTags.append(tag)}
+    serviceSearchInterpretation.append(ruleTags);
+   }else if(ruleCategories.length){
+    const ruleTags=document.createElement('span');ruleTags.className='search-intent-tags';
+    for(const value of ruleCategories){const tag=document.createElement('span');tag.className='search-intent-tag';tag.textContent=value;ruleTags.append(tag)}
+    serviceSearchInterpretation.append(ruleTags);
+   }else{
+    const none=document.createElement('span');none.textContent='입력어에서 규칙 중분류를 찾지 못함';serviceSearchInterpretation.append(none);
+   }
   }
   const note=document.createElement('span');
-  note.textContent=selectable?'대·중분류 조합 후보입니다. 범위 밖 질문에도 후보가 표시될 수 있으며, 선택한 조합만 의미검색에 사용합니다.':semanticSelectedCategoryPairs.length?'선택한 대·중분류 유형과 규칙·검색어를 함께 검색했습니다. 유사도는 확률·적격 판정이 아니며 실제 이용 가능 여부를 보장하지 않습니다.':'의미 유형은 선택되지 않아 검색에 사용하지 않았습니다. 규칙과 입력어를 기준으로 검색했습니다.';
+  note.textContent=selectable?'범위 밖 질문에도 AI 유사 유형 후보가 표시될 수 있습니다. 규칙 영역은 규칙이 찾은 중분류에 해당하는 카탈로그 조합을 별도로 보여주며, 두 후보를 합산하지 않습니다. 선택한 AI 조합만 의미검색에 사용합니다.':semanticSelectedCategoryPairs.length?'선택한 대·중분류 유형과 규칙·검색어를 함께 검색했습니다. 유사도는 확률·적격 판정이 아니며 실제 이용 가능 여부를 보장하지 않습니다.':'의미 유형은 선택되지 않아 검색에 사용하지 않았습니다. 규칙과 입력어를 기준으로 검색했습니다.';
   serviceSearchInterpretation.append(note);
  }else if(matched.length){
   const tags=document.createElement('span');tags.className='search-intent-tags';
@@ -502,7 +529,7 @@ function renderSearchInterpretation(categories,semanticScores=[],{selectable=fal
   const note=document.createElement('span');note.textContent='분류 유형과 원자료 입력어 일치를 근거로 후보를 찾았습니다.';
   serviceSearchInterpretation.append(note);
  }else{
-  const note=document.createElement('span');note.textContent='서비스 분류를 찾지 못해 프로그램명·분류·기관명·주소에 포함된 입력어를 중심으로 검색했습니다.';serviceSearchInterpretation.append(note);
+  const note=document.createElement('span');note.textContent='규칙 유형 분류에 맞지 않아 프로그램명·분류·기관명·주소에 입력어가 포함된 후보를 검색했습니다.';serviceSearchInterpretation.append(note);
  }
  serviceSearchInterpretation.hidden=false;
 }
@@ -846,10 +873,11 @@ serviceSearchForm.addEventListener('submit',async event=>{
    const reviewed=semanticReviewState&&semanticReviewState.query===query&&semanticReviewState.scope===activeServiceSearchScope;
    if(!reviewed){
     try{
-     semanticScores=await withSemanticSearchTimeout(classifyServiceNeedSemantically(query,semanticAttemptId),semanticAttemptId);
+     const semanticAnalysis=await withSemanticSearchTimeout(classifyServiceNeedSemantically(query,semanticAttemptId),semanticAttemptId);
+     semanticScores=semanticAnalysis.scores;
      if(requestId!==serviceSearchRequestId)return;
-     semanticReviewState={query,scope:activeServiceSearchScope,scores:semanticScores,selected:new Set()};
-     renderSearchInterpretation([],semanticScores,{selectable:true,semanticSelectedCategoryPairs:[]});
+     semanticReviewState={query,scope:activeServiceSearchScope,scores:semanticScores,ruleCategories:semanticAnalysis.ruleCategories,ruleCategoryPairs:semanticAnalysis.ruleCategoryPairs,ruleInferenceAvailable:semanticAnalysis.ruleInferenceAvailable,selected:new Set()};
+     renderSearchInterpretation([],semanticScores,{selectable:true,semanticSelectedCategoryPairs:[],ruleCategories:semanticAnalysis.ruleCategories,ruleCategoryPairs:semanticAnalysis.ruleCategoryPairs,showRuleCategories:true,ruleInferenceAvailable:semanticAnalysis.ruleInferenceAvailable});
      serviceSearchStatus.textContent='의미 유사 유형 후보를 확인하고 맞는 항목을 선택한 뒤 다시 눌러 주세요.';
      return;
     }catch(error){
